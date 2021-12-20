@@ -23,9 +23,9 @@ func indexHandler(entries []Entry) http.HandlerFunc {
 	  }
 
 		entry := Entry{
-			Who: r.FormValue("wwhhoo"),
-			Currency: r.FormValue("acurrency"),
-			Quantity: r.FormValue("aquantity"),
+			Who: r.FormValue("who"),
+			Currency: r.FormValue("currency"),
+			Quantity: r.FormValue("quantity"),
 		}
 
 		entries = append(entries, entry)
@@ -36,7 +36,7 @@ func indexHandler(entries []Entry) http.HandlerFunc {
 			fmt.Println("Quantity is: ", myentry.Quantity)
 	  }
 
-		tpl.Execute(w, struct{ Success bool }{true})
+		tpl.Execute(w, entries)
 	}
 }
 
@@ -60,7 +60,6 @@ func main() {
 	myentries = append(myentries, genEntry());
 	myentries = append(myentries, genEntry());
 	myentries = append(myentries, genEntry());
-
 
 	mux := http.NewServeMux()
 
