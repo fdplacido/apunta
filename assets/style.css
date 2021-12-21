@@ -2,10 +2,18 @@ body {
   margin: 40px;
 }
 
+.bottom-three {
+   margin-bottom: 3cm;
+}
+
+.bottom-two {
+   margin-bottom: 2cm;
+}
+
 .wrapper {
   display: grid;
-  grid-template-columns: 100px 100px 100px;
-  grid-gap: 10px;
+  grid-template-columns: 50px 100px 150px 250px;
+  grid-gap: 5px;
   background-color: #fff;
   color: #444;
 }
@@ -14,6 +22,6 @@ body {
   background-color: #444;
   color: #fff;
   border-radius: 5px;
-  padding: 20px;
-  font-size: 150%;
+  padding: 5px;
+  font-size: 100%;
 }

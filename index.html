@@ -15,15 +15,19 @@
         <input type="text" name="currency"><br />
         <label>Quantity:</label><br />
         <input type="text" name="quantity"><br />
+        <label>Comment:</label><br />
+        <input type="text" name="comment"><br />
         <input type="submit">
     </form>
 
+    <p class="bottom-two"></p>
 
     <div class="wrapper">
       {{ range . }}
       <div class="box a">{{.Who}}</div>
       <div class="box b">{{.Currency}}</div>
       <div class="box c">{{.Quantity}}</div>
+      <div class="box c">{{.Comment}}</div>
       {{ end }}
     </div>
 
