@@ -1,18 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"html/template"
+  "fmt"
+  "net/http"
+  "html/template"
 
-	"os"
+  "os"
 
-	"github.com/xuri/excelize/v2"
+  "github.com/xuri/excelize/v2"
 )
 
 type Entry struct {
-		Date     string
-		Category string
+    Date     string
+    Category string
     Who      string
     Currency string
     Quantity string
@@ -22,29 +22,29 @@ type Entry struct {
 var tpl = template.Must(template.ParseFiles("index.html"))
 
 func indexHandler(entries *[]Entry) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-	  if r.Method != http.MethodPost {
+  return func(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
 
-		  filePath := os.Args[1]
-			readExcelFile(entries, filePath)
+      filePath := os.Args[1]
+      readExcelFile(entries, filePath)
 
-	    tpl.Execute(w, *entries)
-	    return
-	  }
+      tpl.Execute(w, *entries)
+      return
+    }
 
-	  // Add entry from form
-		entry := Entry{
-			Date: r.FormValue("date"),
-			Category: r.FormValue("category"),
-			Who: r.FormValue("who"),
-			Currency: r.FormValue("currency"),
-			Quantity: r.FormValue("quantity"),
-			Comment: r.FormValue("comment"),
-		}
-		*entries = append(*entries, entry)
+    // Add entry from form
+    entry := Entry{
+      Date: r.FormValue("date"),
+      Category: r.FormValue("category"),
+      Who: r.FormValue("who"),
+      Currency: r.FormValue("currency"),
+      Quantity: r.FormValue("quantity"),
+      Comment: r.FormValue("comment"),
+    }
+    *entries = append(*entries, entry)
 
-		tpl.Execute(w, *entries)
-	}
+    tpl.Execute(w, *entries)
+  }
 }
 
 
@@ -56,7 +56,7 @@ func readExcelFile(entries *[]Entry, path string) {
     return
   }
 
-	rows, err := f.GetRows("jan2021")
+  rows, err := f.GetRows("jan2021")
   if err != nil {
       fmt.Println(err)
       return
@@ -64,82 +64,82 @@ func readExcelFile(entries *[]Entry, path string) {
 
   for index, row := range rows {
 
-  	// Skip first row
-  	if index == 0 {
-  		continue
-  	}
+    // Skip first row
+    if index == 0 {
+      continue
+    }
 
-  	// Only process if there is something in the row
-  	if len(row) == 0 {
-  		continue
-  	}
+    // Only process if there is something in the row
+    if len(row) == 0 {
+      continue
+    }
 
-  	if row[2] != "" {
-			entry := Entry {
-				Date: row[0],
-				Category: row[1],
-				Who: "A",
-				Currency: "EUR",
-				Quantity: row[2],
-				Comment: row[7],
-			}
-			*entries = append(*entries, entry);
-  	} else if row[3] != "" {
-			entry := Entry {
-				Date: row[0],
-				Category: row[1],
-				Who: "A",
-				Currency: "CHF",
-				Quantity: row[3],
-				Comment: row[7],
-			}
-			*entries = append(*entries, entry);
-  	} else if row[4] != "" {
-			entry := Entry {
-				Date: row[0],
-				Category: row[1],
-				Who: "P",
-				Currency: "EUR",
-				Quantity: row[4],
-				Comment: row[7],
-			}
-			*entries = append(*entries, entry);
-  	} else if row[5] != "" {
-			entry := Entry {
-				Date: row[0],
-				Category: row[1],
-				Who: "P",
-				Currency: "CHF",
-				Quantity: row[5],
-				Comment: row[7],
-			}
-			*entries = append(*entries, entry);
-  	} else if row[6] != "" {
-			entry := Entry {
-				Date: row[0],
-				Category: row[1],
-				Who: "B",
-				Currency: "EUR",
-				Quantity: row[6],
-				Comment: row[7],
-			}
-			*entries = append(*entries, entry);
-  	}
+    if row[2] != "" {
+      entry := Entry {
+        Date: row[0],
+        Category: row[1],
+        Who: "A",
+        Currency: "EUR",
+        Quantity: row[2],
+        Comment: row[7],
+      }
+      *entries = append(*entries, entry);
+    } else if row[3] != "" {
+      entry := Entry {
+        Date: row[0],
+        Category: row[1],
+        Who: "A",
+        Currency: "CHF",
+        Quantity: row[3],
+        Comment: row[7],
+      }
+      *entries = append(*entries, entry);
+    } else if row[4] != "" {
+      entry := Entry {
+        Date: row[0],
+        Category: row[1],
+        Who: "P",
+        Currency: "EUR",
+        Quantity: row[4],
+        Comment: row[7],
+      }
+      *entries = append(*entries, entry);
+    } else if row[5] != "" {
+      entry := Entry {
+        Date: row[0],
+        Category: row[1],
+        Who: "P",
+        Currency: "CHF",
+        Quantity: row[5],
+        Comment: row[7],
+      }
+      *entries = append(*entries, entry);
+    } else if row[6] != "" {
+      entry := Entry {
+        Date: row[0],
+        Category: row[1],
+        Who: "B",
+        Currency: "EUR",
+        Quantity: row[6],
+        Comment: row[7],
+      }
+      *entries = append(*entries, entry);
+    }
   }
 }
 
 
 func main() {
-	port := "3000"
+  port := "3000"
 
-	fs := http.FileServer(http.Dir("assets"))
+  fs := http.FileServer(http.Dir("assets"))
 
-	// Init empty entries
-	myentries := make([]Entry, 0)
+  // Init empty entries
+  myentries := make([]Entry, 0)
 
-	mux := http.NewServeMux()
+  mux := http.NewServeMux()
 
-	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
-	mux.HandleFunc("/", indexHandler(&myentries))
-	http.ListenAndServe(":"+port, mux)
+  mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
+  mux.HandleFunc("/", indexHandler(&myentries))
+  http.ListenAndServe(":"+port, mux)
 }
