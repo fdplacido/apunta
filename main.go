@@ -11,6 +11,8 @@ import (
 )
 
 type Entry struct {
+		Date     string
+		Category string
     Who      string
     Currency string
     Quantity string
@@ -32,6 +34,8 @@ func indexHandler(entries *[]Entry) http.HandlerFunc {
 
 	  // Add entry from form
 		entry := Entry{
+			Date: r.FormValue("date"),
+			Category: r.FormValue("category"),
 			Who: r.FormValue("who"),
 			Currency: r.FormValue("currency"),
 			Quantity: r.FormValue("quantity"),
@@ -72,6 +76,8 @@ func readExcelFile(entries *[]Entry, path string) {
 
   	if row[2] != "" {
 			entry := Entry {
+				Date: row[0],
+				Category: row[1],
 				Who: "A",
 				Currency: "EUR",
 				Quantity: row[2],
@@ -80,6 +86,8 @@ func readExcelFile(entries *[]Entry, path string) {
 			*entries = append(*entries, entry);
   	} else if row[3] != "" {
 			entry := Entry {
+				Date: row[0],
+				Category: row[1],
 				Who: "A",
 				Currency: "CHF",
 				Quantity: row[3],
@@ -88,6 +96,8 @@ func readExcelFile(entries *[]Entry, path string) {
 			*entries = append(*entries, entry);
   	} else if row[4] != "" {
 			entry := Entry {
+				Date: row[0],
+				Category: row[1],
 				Who: "P",
 				Currency: "EUR",
 				Quantity: row[4],
@@ -96,6 +106,8 @@ func readExcelFile(entries *[]Entry, path string) {
 			*entries = append(*entries, entry);
   	} else if row[5] != "" {
 			entry := Entry {
+				Date: row[0],
+				Category: row[1],
 				Who: "P",
 				Currency: "CHF",
 				Quantity: row[5],
@@ -104,6 +116,8 @@ func readExcelFile(entries *[]Entry, path string) {
 			*entries = append(*entries, entry);
   	} else if row[6] != "" {
 			entry := Entry {
+				Date: row[0],
+				Category: row[1],
 				Who: "B",
 				Currency: "EUR",
 				Quantity: row[6],
