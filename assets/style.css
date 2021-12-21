@@ -2,6 +2,16 @@ body {
   margin: 40px;
 }
 
+label {
+    display: block;
+    font: 1rem 'Fira Sans', sans-serif;
+}
+
+input,
+label {
+    margin: .4rem 0;
+}
+
 .bottom-three {
    margin-bottom: 3cm;
 }
@@ -10,9 +20,22 @@ body {
    margin-bottom: 2cm;
 }
 
+input.input-field {
+  width: 90%;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  border: 1px solid #C2C2C2;
+  border-radius: 3px;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  padding: 7px;
+  outline: none;
+}
+
 .wrapper {
   display: grid;
-  grid-template-columns: 100px 100px 50px 100px 150px 250px;
+  grid-template-columns: 150px 120px 50px 100px 150px 250px;
   grid-gap: 5px;
   background-color: #fff;
   color: #444;

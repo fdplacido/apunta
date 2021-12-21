@@ -8,20 +8,38 @@
   </head>
   <body>
 
+
     <form method="post">
-        <label>Date:</label><br />
-        <input type="text" name="date"><br />
-        <label>Category:</label><br />
-        <input type="text" name="category"><br />
-        <label>Who:</label><br />
-        <input type="text" name="who"><br />
-        <label>Currency:</label><br />
-        <input type="text" name="currency"><br />
-        <label>Quantity:</label><br />
-        <input type="text" name="quantity"><br />
-        <label>Comment:</label><br />
-        <input type="text" name="comment"><br />
+      <div class="wrapper">
+        <div class="box">Date</div>
+        <div class="box">Category</div>
+        <div class="box">Who</div>
+        <div class="box">Currency</div>
+        <div class="box">Quantity</div>
+        <div class="box">Comment</div>
+
+        <div class="box">
+        <input type="date" class="input-field" id="entrydate" name="date"
+               value="2018-07-22"
+               min="2018-01-01" max="2018-12-31">
+        </div>
+        <div class="box">
+        <input type="text" class="input-field" name="category"><br />
+        </div>
+        <div class="box">
+        <input type="text" class="input-field" name="who"><br />
+        </div>
+        <div class="box">
+        <input type="text" class="input-field" name="currency"><br />
+        </div>
+        <div class="box">
+        <input type="text" class="input-field" name="quantity"><br />
+        </div>
+        <div class="box">
+        <input type="text" class="input-field" name="comment"><br />
+        </div>
         <input type="submit">
+      </div>
     </form>
 
     <p class="bottom-two"></p>
