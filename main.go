@@ -7,6 +7,7 @@ import (
   "errors"
   "time"
   "strings"
+  "sort"
 
   "os"
 
@@ -38,6 +39,7 @@ func indexHandler(month *MonthEntry) http.HandlerFunc {
       if fileRead == false {
         filePath := os.Args[1]
         *month, _ = readExcelFile(month, filePath)
+        sortEntries(month)
         fileRead = true
       }
 
@@ -62,8 +64,17 @@ func indexHandler(month *MonthEntry) http.HandlerFunc {
     }
     (*month).Entries = append((*month).Entries, entry)
 
+    sortEntries(month)
+
     tpl.Execute(w, *month)
   }
+}
+
+
+func sortEntries(month *MonthEntry) {
+  sort.SliceStable((*month).Entries, func(i, j int) bool {
+    return (*month).Entries[i].Date.Before((*month).Entries[j].Date)
+  })
 }
 
 
