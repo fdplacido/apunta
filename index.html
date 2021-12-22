@@ -20,8 +20,8 @@
 
         <div class="box">
         <input type="date" class="input-field" id="entrydate" name="date"
-               value="2018-07-22"
-               min="2018-01-01" max="2018-12-31">
+               value="{{.MinDate}}"
+               min="{{.MinDate}}" max="{{.MaxDate}}">
         </div>
         <div class="box">
         <input type="text" class="input-field" name="category"><br />
@@ -45,8 +45,8 @@
     <p class="bottom-two"></p>
 
     <div class="wrapper">
-      {{ range . }}
-      <div class="box">{{.Date}}</div>
+      {{ range.Entries }}
+      <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
       <div class="box">{{.Category}}</div>
       <div class="box">{{.Who}}</div>
       <div class="box">{{.Currency}}</div>

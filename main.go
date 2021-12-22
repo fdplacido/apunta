@@ -4,6 +4,9 @@ import (
   "fmt"
   "net/http"
   "html/template"
+  "errors"
+  "time"
+  "strings"
 
   "os"
 
@@ -11,59 +14,71 @@ import (
 )
 
 type Entry struct {
-    Date     string
-    Category string
-    Who      string
-    Currency string
-    Quantity string
-    Comment  string
+  Date     time.Time
+  Category string
+  Who      string
+  Currency string
+  Quantity string
+  Comment  string
+}
+
+type MonthEntry struct {
+  MaxDate time.Time
+  MinDate time.Time
+  Entries []Entry
 }
 
 var tpl = template.Must(template.ParseFiles("index.html"))
 
-func indexHandler(entries *[]Entry) http.HandlerFunc {
+func indexHandler(month *MonthEntry) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
 
       filePath := os.Args[1]
-      readExcelFile(entries, filePath)
+      *month, _ = readExcelFile(month, filePath)
 
-      tpl.Execute(w, *entries)
+      tpl.Execute(w, *month)
       return
     }
 
     // Add entry from form
+    entryDate, err := time.Parse("02/01/2006", r.FormValue("date"))
+    if err != nil {
+      fmt.Println(err)
+      entryDate = time.Time{}
+    }
+
     entry := Entry{
-      Date: r.FormValue("date"),
+      Date: entryDate,
       Category: r.FormValue("category"),
       Who: r.FormValue("who"),
       Currency: r.FormValue("currency"),
       Quantity: r.FormValue("quantity"),
       Comment: r.FormValue("comment"),
     }
-    *entries = append(*entries, entry)
+    (*month).Entries = append((*month).Entries, entry)
 
-    tpl.Execute(w, *entries)
+    tpl.Execute(w, *month)
   }
 }
 
 
-
-func readExcelFile(entries *[]Entry, path string) {
+func readExcelFile(month *MonthEntry, path string) (MonthEntry, error) {
   f, err := excelize.OpenFile(path)
   if err != nil {
     fmt.Println(err)
-    return
+    return MonthEntry{}, errors.New("Could not open file")
   }
 
   rows, err := f.GetRows("jan2021")
   if err != nil {
       fmt.Println(err)
-      return
+      return MonthEntry{}, errors.New("Error reading rows")
   }
 
-  for index, row := range rows {
+  entries := (*month).Entries
 
+  for index, row := range rows {
     // Skip first row
     if index == 0 {
       continue
@@ -74,58 +89,74 @@ func readExcelFile(entries *[]Entry, path string) {
       continue
     }
 
+    // Parse Dates
+    const layout = "02/01/06"
+    entryDate, err := time.Parse(layout, strings.TrimSpace(row[0]))
+    if err != nil {
+      fmt.Println(err)
+      entryDate = time.Time{}
+    }
+
     if row[2] != "" {
       entry := Entry {
-        Date: row[0],
+        Date: entryDate,
         Category: row[1],
         Who: "A",
         Currency: "EUR",
         Quantity: row[2],
         Comment: row[7],
       }
-      *entries = append(*entries, entry);
+      entries = append(entries, entry);
     } else if row[3] != "" {
       entry := Entry {
-        Date: row[0],
+        Date: entryDate,
         Category: row[1],
         Who: "A",
         Currency: "CHF",
         Quantity: row[3],
         Comment: row[7],
       }
-      *entries = append(*entries, entry);
+      entries = append(entries, entry);
     } else if row[4] != "" {
       entry := Entry {
-        Date: row[0],
+        Date: entryDate,
         Category: row[1],
         Who: "P",
         Currency: "EUR",
         Quantity: row[4],
         Comment: row[7],
       }
-      *entries = append(*entries, entry);
+      entries = append(entries, entry);
     } else if row[5] != "" {
       entry := Entry {
-        Date: row[0],
+        Date: entryDate,
         Category: row[1],
         Who: "P",
         Currency: "CHF",
         Quantity: row[5],
         Comment: row[7],
       }
-      *entries = append(*entries, entry);
+      entries = append(entries, entry);
     } else if row[6] != "" {
       entry := Entry {
-        Date: row[0],
+        Date: entryDate,
         Category: row[1],
         Who: "B",
         Currency: "EUR",
         Quantity: row[6],
         Comment: row[7],
       }
-      *entries = append(*entries, entry);
+      entries = append(entries, entry);
     }
   }
+
+  (*month).Entries = entries
+
+  // Get Max and Min
+  (*month).MaxDate = (*month).Entries[0].Date
+  (*month).MinDate = (*month).Entries[len((*month).Entries)-1].Date
+
+  return *month, nil
 }
 
 
@@ -135,11 +166,12 @@ func main() {
   fs := http.FileServer(http.Dir("assets"))
 
   // Init empty entries
-  myentries := make([]Entry, 0)
+  // myentries := make([]Entry, 0)
+  monthEntries := MonthEntry{}
 
   mux := http.NewServeMux()
 
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
-  mux.HandleFunc("/", indexHandler(&myentries))
+  mux.HandleFunc("/", indexHandler(&monthEntries))
   http.ListenAndServe(":"+port, mux)
 }
