@@ -8,7 +8,6 @@
   </head>
   <body>
 
-
     <form method="post">
       <div class="wrapper">
         <div class="box">Date</div>
@@ -20,8 +19,9 @@
 
         <div class="box">
         <input type="date" class="input-field" id="entrydate" name="date"
-               value="{{.MinDate}}"
-               min="{{.MinDate}}" max="{{.MaxDate}}">
+               value="{{.MinDate.Format "2006-01-02"}}"
+               min="{{.MinDate.Format "2006-01-02"}}"
+               max="{{.MaxDate.Format "2006-01-02"}}">
         </div>
         <div class="box">
         <input type="text" class="input-field" name="category"><br />

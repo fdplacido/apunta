@@ -29,20 +29,24 @@ type MonthEntry struct {
 }
 
 var tpl = template.Must(template.ParseFiles("index.html"))
+var fileRead = false
 
 func indexHandler(month *MonthEntry) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
 
-      filePath := os.Args[1]
-      *month, _ = readExcelFile(month, filePath)
+      if fileRead == false {
+        filePath := os.Args[1]
+        *month, _ = readExcelFile(month, filePath)
+        fileRead = true
+      }
 
       tpl.Execute(w, *month)
       return
     }
 
     // Add entry from form
-    entryDate, err := time.Parse("02/01/2006", r.FormValue("date"))
+    entryDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
     if err != nil {
       fmt.Println(err)
       entryDate = time.Time{}
@@ -153,8 +157,8 @@ func readExcelFile(month *MonthEntry, path string) (MonthEntry, error) {
   (*month).Entries = entries
 
   // Get Max and Min
-  (*month).MaxDate = (*month).Entries[0].Date
-  (*month).MinDate = (*month).Entries[len((*month).Entries)-1].Date
+  (*month).MinDate = (*month).Entries[0].Date
+  (*month).MaxDate = (*month).Entries[len((*month).Entries)-1].Date
 
   return *month, nil
 }

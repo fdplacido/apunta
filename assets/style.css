@@ -1,5 +1,6 @@
 body {
   margin: 40px;
+  background-color: #c6c6c6;
 }
 
 label {
@@ -29,22 +30,22 @@ input.input-field {
   border-radius: 3px;
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
-  padding: 7px;
+  padding: 2px;
   outline: none;
 }
 
 .wrapper {
   display: grid;
   grid-template-columns: 150px 120px 50px 100px 150px 250px;
-  grid-gap: 5px;
-  background-color: #fff;
+  grid-gap: 3px;
+  background-color: #c6c6c6;
   color: #444;
 }
 
 .box {
   background-color: #444;
   color: #fff;
-  border-radius: 5px;
-  padding: 5px;
+  border-radius: 3px;
+  padding: 3px;
   font-size: 100%;
 }
