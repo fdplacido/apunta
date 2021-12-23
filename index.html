@@ -8,6 +8,10 @@
   </head>
   <body>
 
+
+<h2>Apunta</h2>
+
+
     <form method="post">
       <div class="wrapper">
         <div class="box">Date</div>
@@ -42,16 +46,30 @@
       </div>
     </form>
 
-    <p class="bottom-two"></p>
+    <p class="bottom-one"></p>
 
     <form action="/writeExcel" method="post">
       <input type="submit" value="Write to Excel file">
     </form>
 
-    <p class="bottom-two"></p>
+    <p class="bottom-one"></p>
+
+
+<div class="warpper">
+  <input class="radio" id="one" name="group" type="radio" checked>
+  <input class="radio" id="two" name="group" type="radio">
+  <input class="radio" id="three" name="group" type="radio">
+  <div class="tabs">
+    <label class="tab" id="one-tab" for="one">Month1</label>
+    <label class="tab" id="two-tab" for="two">Month2</label>
+    <label class="tab" id="three-tab" for="three">Month3</label>
+  </div>
+  <div class="panels">
+  <div class="panel" id="one-panel">
+    <div class="panel-title">Month 1</div>
 
     <div class="wrapper">
-      {{ range.Entries }}
+      {{ range.DayRecords }}
       <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
       <div class="box">{{.Category}}</div>
       <div class="box">{{.Who}}</div>
@@ -60,6 +78,48 @@
       <div class="box">{{.Comment}}</div>
       {{ end }}
     </div>
+
+
+  </div>
+  <div class="panel" id="two-panel">
+    <div class="panel-title">Month 2</div>
+
+    <div class="wrapper">
+      {{ range.DayRecords }}
+      <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
+      <div class="box">{{.Category}}</div>
+      <div class="box">{{.Who}}</div>
+      <div class="box">{{.Currency}}</div>
+      <div class="box">{{.Quantity}}</div>
+      <div class="box">{{.Comment}}</div>
+      {{ end }}
+    </div>
+
+  </div>
+  <div class="panel" id="three-panel">
+    <div class="panel-title">Month 3</div>
+
+    <div class="wrapper">
+      {{ range.DayRecords }}
+      <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
+      <div class="box">{{.Category}}</div>
+      <div class="box">{{.Who}}</div>
+      <div class="box">{{.Currency}}</div>
+      <div class="box">{{.Quantity}}</div>
+      <div class="box">{{.Comment}}</div>
+      {{ end }}
+    </div>
+
+  </div>
+  </div>
+</div>
+
+
+
+
+
+
+
 
 
   </body>
