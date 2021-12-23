@@ -32,17 +32,9 @@ type MonthEntry struct {
 var tpl = template.Must(template.ParseFiles("index.html"))
 var fileRead = false
 
-func indexHandler(month *MonthEntry) http.HandlerFunc {
+func indexHandler(file *excelize.File, month *MonthEntry) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
-
-      if fileRead == false {
-        filePath := os.Args[1]
-        *month, _ = readExcelFile(month, filePath)
-        sortEntries(month)
-        fileRead = true
-      }
-
       tpl.Execute(w, *month)
       return
     }
@@ -66,6 +58,36 @@ func indexHandler(month *MonthEntry) http.HandlerFunc {
 
     sortEntries(month)
 
+    // Add entry to actual file, at the bottom of the file
+    rows, err := file.GetRows("jan2021")
+    if err != nil {
+        fmt.Println(err)
+    }
+
+    lastRow := len(rows)
+    insertErr := file.InsertRow("jan2021", lastRow)
+    if insertErr != nil {
+        fmt.Println(insertErr)
+    }
+    file.SetCellValue("jan2021", fmt.Sprintf("A%d", lastRow), entry.Date)
+    file.SetCellValue("jan2021", fmt.Sprintf("B%d", lastRow), entry.Category)
+    if entry.Who == "A" {
+      if entry.Currency == "EUR" {
+        file.SetCellValue("jan2021", fmt.Sprintf("C%d", lastRow), entry.Quantity)
+      } else if entry.Currency == "CHF" {
+        file.SetCellValue("jan2021", fmt.Sprintf("D%d", lastRow), entry.Quantity)
+      }
+    } else if entry.Who == "P" {
+      if entry.Currency == "EUR" {
+        file.SetCellValue("jan2021", fmt.Sprintf("E%d", lastRow), entry.Quantity)
+      } else if entry.Currency == "CHF" {
+        file.SetCellValue("jan2021", fmt.Sprintf("F%d", lastRow), entry.Quantity)
+      }
+    } else if entry.Who == "B" {
+      file.SetCellValue("jan2021", fmt.Sprintf("G%d", lastRow), entry.Quantity)
+    }
+    file.SetCellValue("jan2021", fmt.Sprintf("H%d", lastRow), entry.Comment)
+
     tpl.Execute(w, *month)
   }
 }
@@ -78,17 +100,30 @@ func sortEntries(month *MonthEntry) {
 }
 
 
-func readExcelFile(month *MonthEntry, path string) (MonthEntry, error) {
+func writeExcel(file *excelize.File, month *MonthEntry) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("Saving file")
+    err := file.Save()
+    if err != nil {
+        fmt.Println(err)
+    }
+
+    tpl.Execute(w, *month)
+  }
+}
+
+
+func readExcelFile(month *MonthEntry, path string) (MonthEntry, *excelize.File, error) {
   f, err := excelize.OpenFile(path)
   if err != nil {
     fmt.Println(err)
-    return MonthEntry{}, errors.New("Could not open file")
+    return MonthEntry{}, f, errors.New("Could not open file")
   }
 
   rows, err := f.GetRows("jan2021")
   if err != nil {
       fmt.Println(err)
-      return MonthEntry{}, errors.New("Error reading rows")
+      return MonthEntry{}, f, errors.New("Error reading rows")
   }
 
   entries := (*month).Entries
@@ -171,7 +206,7 @@ func readExcelFile(month *MonthEntry, path string) (MonthEntry, error) {
   (*month).MinDate = (*month).Entries[0].Date
   (*month).MaxDate = (*month).Entries[len((*month).Entries)-1].Date
 
-  return *month, nil
+  return *month, f, nil
 }
 
 
@@ -180,13 +215,26 @@ func main() {
 
   fs := http.FileServer(http.Dir("assets"))
 
-  // Init empty entries
-  // myentries := make([]Entry, 0)
+  // Read input file
   monthEntries := MonthEntry{}
+  file := &excelize.File{}
+  if fileRead == false {
+    filePath := os.Args[1]
+    fmt.Println("Reading excel file: ", filePath)
+    me, f, err := readExcelFile(&monthEntries, filePath)
+    file = f
+    monthEntries = me
+    if err != nil {
+      fmt.Println(err)
+    }
+    sortEntries(&monthEntries)
+    fileRead = true
+  }
 
   mux := http.NewServeMux()
 
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
-  mux.HandleFunc("/", indexHandler(&monthEntries))
+  mux.HandleFunc("/writeExcel", writeExcel(file, &monthEntries))
+  mux.HandleFunc("/", indexHandler(file, &monthEntries))
   http.ListenAndServe(":"+port, mux)
 }
