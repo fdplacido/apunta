@@ -39,6 +39,13 @@ func indexHandler(file *excelize.File, month *MonthEntry) http.HandlerFunc {
       return
     }
 
+    addNewEntry(file, month, r)
+
+    tpl.Execute(w, *month)
+  }
+}
+
+func addNewEntry(file *excelize.File, month *MonthEntry, r *http.Request) {
     // Add entry from form
     entryDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
     if err != nil {
@@ -87,10 +94,8 @@ func indexHandler(file *excelize.File, month *MonthEntry) http.HandlerFunc {
       file.SetCellValue("jan2021", fmt.Sprintf("G%d", lastRow), entry.Quantity)
     }
     file.SetCellValue("jan2021", fmt.Sprintf("H%d", lastRow), entry.Comment)
-
-    tpl.Execute(w, *month)
-  }
 }
+
 
 
 func sortEntries(month *MonthEntry) {
