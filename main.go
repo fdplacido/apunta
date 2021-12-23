@@ -69,7 +69,7 @@ func indexHandler(file *excelize.File, month *MonthEntry) http.HandlerFunc {
     if insertErr != nil {
         fmt.Println(insertErr)
     }
-    file.SetCellValue("jan2021", fmt.Sprintf("A%d", lastRow), entry.Date)
+    file.SetCellValue("jan2021", fmt.Sprintf("A%d", lastRow), entry.Date.Format("02/01/06"))
     file.SetCellValue("jan2021", fmt.Sprintf("B%d", lastRow), entry.Category)
     if entry.Who == "A" {
       if entry.Currency == "EUR" {
