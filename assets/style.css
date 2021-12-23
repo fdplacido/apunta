@@ -8,7 +8,7 @@ h2{
   text-align:center;
   font-size:2em;
 }
-.tabwarpper{
+.warpper{
   display:flex;
   flex-direction: column;
   align-items: center;
@@ -52,14 +52,33 @@ h2{
 .radio{
   display:none;
 }
-#one:checked ~ .panels #one-panel,
-#two:checked ~ .panels #two-panel,
-#three:checked ~ .panels #three-panel{
+
+#jan2021:checked ~ .panels #jan2021-panel,
+#feb2021:checked ~ .panels #feb2021-panel,
+#mar2021:checked ~ .panels #mar2021-panel,
+#apr2021:checked ~ .panels #apr2021-panel,
+#may2021:checked ~ .panels #may2021-panel,
+#jun2021:checked ~ .panels #jun2021-panel,
+#jul2021:checked ~ .panels #jul2021-panel,
+#aug2021:checked ~ .panels #aug2021-panel,
+#sep2021:checked ~ .panels #sep2021-panel,
+#oct2021:checked ~ .panels #oct2021-panel,
+#nov2021:checked ~ .panels #nov2021-panel,
+#dec2021:checked ~ .panels #dec2021-panel{
   display:block
 }
-#one:checked ~ .tabs #one-tab,
-#two:checked ~ .tabs #two-tab,
-#three:checked ~ .tabs #three-tab{
+#jan2021:checked ~ .tabs #jan2021-tab,
+#feb2021:checked ~ .tabs #feb2021-tab,
+#mar2021:checked ~ .tabs #mar2021-tab,
+#apr2021:checked ~ .tabs #apr2021-tab,
+#may2021:checked ~ .tabs #may2021-tab,
+#jun2021:checked ~ .tabs #jun2021-tab,
+#jul2021:checked ~ .tabs #jul2021-tab,
+#aug2021:checked ~ .tabs #aug2021-tab,
+#sep2021:checked ~ .tabs #sep2021-tab,
+#oct2021:checked ~ .tabs #oct2021-tab,
+#nov2021:checked ~ .tabs #nov2021-tab,
+#dec2021:checked ~ .tabs #dec2021-tab{
   background:#fffffff6;
   color:#000;
   border-top: 3px solid #000;
