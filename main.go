@@ -46,70 +46,79 @@ func indexHandler(year *YearRec) http.HandlerFunc {
       return
     }
 
-    addNewEntry(year, r, "dec2021")
+    addNewEntry(year, r)
 
     tpl.Execute(w, *year)
   }
 }
 
-func addNewEntry(year *YearRec, r *http.Request, sheetName string) {
-    // Add entry from form
-    recDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
-    if err != nil {
+func addNewEntry(year *YearRec, r *http.Request) {
+  // Add entry from form
+  recDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
+  if err != nil {
+    fmt.Println(err)
+    recDate = time.Time{}
+  }
+
+  // Check correct year
+  if recDate.Year() != (*year).MonthRecords[0].MinDate.Year() {
+    fmt.Println("Chosen date belongs to a different year")
+    return
+  }
+
+  // Find correct month to insert to
+  var ptrMonthRec *MonthRec
+  for index, month := range (*year).MonthRecords {
+    if index == int(recDate.Month()) - 1 {
+      ptrMonthRec = &month
+      break
+    }
+  }
+
+  dayRecord := DayRec{
+    Date: recDate,
+    Category: r.FormValue("category"),
+    Who: r.FormValue("who"),
+    Currency: r.FormValue("currency"),
+    Quantity: r.FormValue("quantity"),
+    Comment: r.FormValue("comment"),
+  }
+  (*ptrMonthRec).DayRecords = append((*ptrMonthRec).DayRecords, dayRecord)
+
+  sortRecordsByDate(ptrMonthRec)
+
+  // Add entry to actual file, at the bottom of the file
+  rows, err := year.excelFile.GetRows((*ptrMonthRec).MonthName)
+  if err != nil {
       fmt.Println(err)
-      recDate = time.Time{}
-    }
+  }
 
-    // TODO change insertion to happen to the correct tab
-    var ptrMonthRec *MonthRec
-    for _, month := range (*year).MonthRecords {
-      if sheetName == month.MonthName {
-        ptrMonthRec = &month
-      }
+  lastRow := len(rows)
+  // TODO row may brake columns to the right
+  insertErr := year.excelFile.InsertRow((*ptrMonthRec).MonthName, lastRow)
+  if insertErr != nil {
+      fmt.Println(insertErr)
+  }
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("A%d", lastRow), dayRecord.Date.Format("02/01/06"))
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("B%d", lastRow), dayRecord.Category)
+  if dayRecord.Who == "A" {
+    if dayRecord.Currency == "EUR" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("C%d", lastRow), dayRecord.Quantity)
+    } else if dayRecord.Currency == "CHF" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("D%d", lastRow), dayRecord.Quantity)
     }
+  } else if dayRecord.Who == "P" {
+    if dayRecord.Currency == "EUR" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("E%d", lastRow), dayRecord.Quantity)
+    } else if dayRecord.Currency == "CHF" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("F%d", lastRow), dayRecord.Quantity)
+    }
+  } else if dayRecord.Who == "B" {
+    year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("G%d", lastRow), dayRecord.Quantity)
+  }
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("H%d", lastRow), dayRecord.Comment)
 
-    dayRecord := DayRec{
-      Date: recDate,
-      Category: r.FormValue("category"),
-      Who: r.FormValue("who"),
-      Currency: r.FormValue("currency"),
-      Quantity: r.FormValue("quantity"),
-      Comment: r.FormValue("comment"),
-    }
-    (*ptrMonthRec).DayRecords = append((*ptrMonthRec).DayRecords, dayRecord)
-
-    sortRecordsByDate(ptrMonthRec)
-
-    // Add entry to actual file, at the bottom of the file
-    rows, err := year.excelFile.GetRows(sheetName)
-    if err != nil {
-        fmt.Println(err)
-    }
-
-    lastRow := len(rows)
-    // TODO row may brake columns to the right
-    insertErr := year.excelFile.InsertRow(sheetName, lastRow)
-    if insertErr != nil {
-        fmt.Println(insertErr)
-    }
-    year.excelFile.SetCellValue(sheetName, fmt.Sprintf("A%d", lastRow), dayRecord.Date.Format("02/01/06"))
-    year.excelFile.SetCellValue(sheetName, fmt.Sprintf("B%d", lastRow), dayRecord.Category)
-    if dayRecord.Who == "A" {
-      if dayRecord.Currency == "EUR" {
-        year.excelFile.SetCellValue(sheetName, fmt.Sprintf("C%d", lastRow), dayRecord.Quantity)
-      } else if dayRecord.Currency == "CHF" {
-        year.excelFile.SetCellValue(sheetName, fmt.Sprintf("D%d", lastRow), dayRecord.Quantity)
-      }
-    } else if dayRecord.Who == "P" {
-      if dayRecord.Currency == "EUR" {
-        year.excelFile.SetCellValue(sheetName, fmt.Sprintf("E%d", lastRow), dayRecord.Quantity)
-      } else if dayRecord.Currency == "CHF" {
-        year.excelFile.SetCellValue(sheetName, fmt.Sprintf("F%d", lastRow), dayRecord.Quantity)
-      }
-    } else if dayRecord.Who == "B" {
-      year.excelFile.SetCellValue(sheetName, fmt.Sprintf("G%d", lastRow), dayRecord.Quantity)
-    }
-    year.excelFile.SetCellValue(sheetName, fmt.Sprintf("H%d", lastRow), dayRecord.Comment)
+  fmt.Println("Inserted: ", dayRecord)
 }
 
 // *******************************
@@ -259,11 +268,16 @@ func readExcelFile(year *YearRec, path string) (YearRec, error) {
     monthRec.DayRecords = dayRecords
 
     // Get Max and Min
+    // TODO remove
     monthRec.MinDate = monthRec.DayRecords[0].Date
     monthRec.MaxDate = monthRec.DayRecords[len(monthRec.DayRecords)-1].Date
 
     (*year).MonthRecords = append((*year).MonthRecords, monthRec)
+
+    fmt.Print(".")
   }
+
+  fmt.Println(" File read!")
 
   return *year, nil
 }
@@ -290,6 +304,8 @@ func main() {
     }
     inputFileRead = true
   }
+
+  fmt.Println("Listening on localhost:"+port)
 
   mux := http.NewServeMux()
 
