@@ -8,8 +8,10 @@ import (
   "time"
   "strings"
   "sort"
-
+  "path/filepath"
   "os"
+  "encoding/json"
+  "io/ioutil"
 
   "github.com/xuri/excelize/v2"
 )
@@ -286,26 +288,50 @@ func readExcelFile(year *YearRec, path string) (YearRec, error) {
 func main() {
   port := "3000"
 
-  fs := http.FileServer(http.Dir("assets"))
-
-  // Read input file
   yearRecord := YearRec{}
-  // file := &excelize.File{}
-  if inputFileRead == false {
+
+  // Check input file type
+  if inputFileRead == false && len(os.Args) == 2 {
     filePath := os.Args[1]
-    fmt.Println("Reading input file: ", filePath)
-    yr, err := readExcelFile(&yearRecord, filePath)
-    yearRecord = yr
-    if err != nil {
-      fmt.Println(err)
+    extensionType := filepath.Ext(filePath)
+    if extensionType == ".json" {
+      fmt.Println("Reading input file: filePath")
+      jsonFile, err := os.Open("test.json")
+      if err != nil {
+          fmt.Println(err)
+      }
+      defer jsonFile.Close()
+      byteValue, _ := ioutil.ReadAll(jsonFile)
+      json.Unmarshal(byteValue, &yearRecord)
+
+    } else if extensionType == ".xlsx" {
+      fmt.Println("Reading input file: ", filePath)
+      yr, err := readExcelFile(&yearRecord, filePath)
+      yearRecord = yr
+      if err != nil {
+        fmt.Println(err)
+      }
+      for _, month := range yearRecord.MonthRecords {
+        sortRecordsByDate(&month)
+      }
+      inputFileRead = true
+
+      b, err := json.MarshalIndent(yearRecord, "", " ")
+      if err != nil {
+          fmt.Println(err)
+          return
+      }
+      // When reading xlsx file, produce the equivalent in JSON for output
+      _ = ioutil.WriteFile("test.json", b, 0644)
     }
-    for _, month := range yearRecord.MonthRecords {
-      sortRecordsByDate(&month)
-    }
-    inputFileRead = true
+  } else if len(os.Args) == 1 {
+    fmt.Println("No input file: creating empty record")
   }
 
   fmt.Println("Listening on localhost:"+port)
+
+  // Serve assets folder
+  fs := http.FileServer(http.Dir("assets"))
 
   mux := http.NewServeMux()
 
