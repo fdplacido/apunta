@@ -137,11 +137,46 @@ func sortRecordsByDate(month *MonthRec) {
 // *******************************
 func writeExcel(year *YearRec) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Saving file...")
+    fmt.Println("Saving XLSX file...")
     err := year.excelFile.Save()
     if err != nil {
         fmt.Println(err)
     }
+
+    tpl.Execute(w, *year)
+  }
+}
+
+
+// *******************************
+// Write changes into a JSON file
+// *******************************
+func writeJson(year *YearRec, fileName string) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    b, err := json.MarshalIndent((*year), "", " ")
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    _ = ioutil.WriteFile(fileName, b, 0644)
+
+    tpl.Execute(w, *year)
+  }
+}
+
+
+// *******************************
+// Add sheet given a name
+// *******************************
+func addSheet(year *YearRec) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+
+    monthRec := MonthRec{
+      ActiveMonth: true,
+    }
+    monthRec.MonthName = strings.TrimSpace(r.FormValue("sheetName"))
+
+    (*year).MonthRecords = append((*year).MonthRecords, monthRec)
 
     tpl.Execute(w, *year)
   }
@@ -296,7 +331,7 @@ func main() {
     extensionType := filepath.Ext(filePath)
     if extensionType == ".json" {
       fmt.Println("Reading input file: filePath")
-      jsonFile, err := os.Open("test.json")
+      jsonFile, err := os.Open(filePath)
       if err != nil {
           fmt.Println(err)
       }
@@ -316,13 +351,7 @@ func main() {
       }
       inputFileRead = true
 
-      b, err := json.MarshalIndent(yearRecord, "", " ")
-      if err != nil {
-          fmt.Println(err)
-          return
-      }
-      // When reading xlsx file, produce the equivalent in JSON for output
-      _ = ioutil.WriteFile("test.json", b, 0644)
+      writeJson(&yearRecord, "test.json")
     }
   } else if len(os.Args) == 1 {
     fmt.Println("No input file: creating empty record")
@@ -337,6 +366,8 @@ func main() {
 
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
   mux.HandleFunc("/writeExcel", writeExcel(&yearRecord))
+  mux.HandleFunc("/writeJSON", writeJson(&yearRecord, "test.json"))
+  mux.HandleFunc("/addSheet", addSheet(&yearRecord))
   mux.HandleFunc("/", indexHandler(&yearRecord))
   http.ListenAndServe(":"+port, mux)
 
