@@ -7,11 +7,14 @@ import (
   "errors"
   "time"
   "strings"
+  "strconv"
   "sort"
   "path/filepath"
   "os"
   "encoding/json"
   "io/ioutil"
+
+  "apunta/exchRates"
 
   "github.com/xuri/excelize/v2"
 )
@@ -25,72 +28,47 @@ type DayRec struct {
   Comment  string
 }
 
+type CurrencyEntry struct {
+  CurrFrom  string
+  CurrTo    string
+  AvgVal    float64
+}
+
 type MonthRec struct {
-  MaxDate     time.Time
-  MinDate     time.Time
   MonthName   string
+  MonthNum    int
   ActiveMonth bool
+  CurrStore   CurrencyEntry
   DayRecords  []DayRec
 }
 
 type YearRec struct {
   excelFile       *excelize.File
+  YearNum         int
   MonthRecords    []MonthRec
 }
 
 var tpl = template.Must(template.ParseFiles("index.html"))
 var inputFileRead = false
 
+
+// *******************************
+// Entry point from loaded or empty entries
+// *******************************
 func indexHandler(year *YearRec) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-      tpl.Execute(w, *year)
-      return
-    }
-
-    addNewEntry(year, r)
-
     tpl.Execute(w, *year)
   }
 }
 
-func addNewEntry(year *YearRec, r *http.Request) {
-  // Add entry from form
-  recDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
-  if err != nil {
-    fmt.Println(err)
-    recDate = time.Time{}
-  }
-
-  // Check correct year
-  if recDate.Year() != (*year).MonthRecords[0].MinDate.Year() {
-    fmt.Println("Chosen date belongs to a different year")
-    return
-  }
-
-  // Find correct month to insert to
-  var ptrMonthRec *MonthRec
-  for index, month := range (*year).MonthRecords {
-    if index == int(recDate.Month()) - 1 {
-      ptrMonthRec = &month
-      break
-    }
-  }
-
-  dayRecord := DayRec{
-    Date: recDate,
-    Category: r.FormValue("category"),
-    Who: r.FormValue("who"),
-    Currency: r.FormValue("currency"),
-    Quantity: r.FormValue("quantity"),
-    Comment: r.FormValue("comment"),
-  }
-  (*ptrMonthRec).DayRecords = append((*ptrMonthRec).DayRecords, dayRecord)
-
-  sortRecordsByDate(ptrMonthRec)
-
+// *******************************
+// Add Entry to the Excel file
+// TODO do this only when writting the actual excel file
+// TODO there needs to be a stack of operations to do when saving
+// *******************************
+func addEntryToExcel(year *YearRec, ptrMonthRec *MonthRec, dayRecord *DayRec) {
   // Add entry to actual file, at the bottom of the file
-  rows, err := year.excelFile.GetRows((*ptrMonthRec).MonthName)
+  rows, err := (*year).excelFile.GetRows((*ptrMonthRec).MonthName)
   if err != nil {
       fmt.Println(err)
   }
@@ -101,27 +79,78 @@ func addNewEntry(year *YearRec, r *http.Request) {
   if insertErr != nil {
       fmt.Println(insertErr)
   }
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("A%d", lastRow), dayRecord.Date.Format("02/01/06"))
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("B%d", lastRow), dayRecord.Category)
-  if dayRecord.Who == "A" {
-    if dayRecord.Currency == "EUR" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("C%d", lastRow), dayRecord.Quantity)
-    } else if dayRecord.Currency == "CHF" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("D%d", lastRow), dayRecord.Quantity)
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("A%d", lastRow), (*dayRecord).Date.Format("02/01/06"))
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("B%d", lastRow), (*dayRecord).Category)
+  if (*dayRecord).Who == "A" {
+    if (*dayRecord).Currency == "EUR" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("C%d", lastRow), (*dayRecord).Quantity)
+    } else if (*dayRecord).Currency == "CHF" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("D%d", lastRow), (*dayRecord).Quantity)
     }
-  } else if dayRecord.Who == "P" {
-    if dayRecord.Currency == "EUR" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("E%d", lastRow), dayRecord.Quantity)
-    } else if dayRecord.Currency == "CHF" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("F%d", lastRow), dayRecord.Quantity)
+  } else if (*dayRecord).Who == "P" {
+    if (*dayRecord).Currency == "EUR" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("E%d", lastRow), (*dayRecord).Quantity)
+    } else if (*dayRecord).Currency == "CHF" {
+      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("F%d", lastRow), (*dayRecord).Quantity)
     }
-  } else if dayRecord.Who == "B" {
-    year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("G%d", lastRow), dayRecord.Quantity)
+  } else if (*dayRecord).Who == "B" {
+    year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("G%d", lastRow), (*dayRecord).Quantity)
   }
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("H%d", lastRow), dayRecord.Comment)
+  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("H%d", lastRow), (*dayRecord).Comment)
 
-  fmt.Println("Inserted: ", dayRecord)
+  fmt.Println("Inserted: ", (*dayRecord))
 }
+
+
+// *******************************
+// Add new entry
+// *******************************
+func addEntry(year *YearRec) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    // Add entry from form
+    recDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
+    if err != nil {
+      fmt.Println(err)
+      recDate = time.Time{}
+    }
+
+    // Check correct year
+    if recDate.Year() != (*year).YearNum {
+      fmt.Println("Chosen date belongs to a different year")
+      return
+    }
+
+    dayRecord := DayRec{
+      Date: recDate,
+      Category: r.FormValue("category"),
+      Who: r.FormValue("who"),
+      Currency: r.FormValue("currency"),
+      Quantity: r.FormValue("quantity"),
+      Comment: r.FormValue("comment"),
+    }
+
+    // Find correct month to insert to
+    for index, month := range (*year).MonthRecords {
+      if (int(recDate.Month())) == month.MonthNum {
+
+        fmt.Println("Average exch rate for this month: ", (*year).MonthRecords[index].CurrStore.AvgVal)
+        // Check if there is an exchange rate for this month
+        if (*year).MonthRecords[index].CurrStore.AvgVal == 0.0 {
+          // Get exchange rate from openexchangerates
+          (*year).MonthRecords[index].CurrStore.AvgVal = exchRages.GetRate("CHF", "EUR")
+          fmt.Println("Got exchange rate: ", (*year).MonthRecords[index].CurrStore.AvgVal)
+        }
+
+        (*year).MonthRecords[index].DayRecords = append((*year).MonthRecords[index].DayRecords, dayRecord)
+        sortRecordsByDate(&(*year).MonthRecords[index])
+        break
+      }
+    }
+
+    tpl.Execute(w, *year)
+  }
+}
+
 
 // *******************************
 // Sort records by ascending date within a month
@@ -175,6 +204,20 @@ func addSheet(year *YearRec) http.HandlerFunc {
       ActiveMonth: true,
     }
     monthRec.MonthName = strings.TrimSpace(r.FormValue("sheetName"))
+    monthNum, err := strconv.Atoi(strings.TrimSpace(r.FormValue("monthNumber")))
+    if err != nil {
+      fmt.Println(err)
+      return
+    }
+    monthRec.MonthNum = monthNum
+
+    sheetYear, err := strconv.Atoi(strings.TrimSpace(r.FormValue("sheetYear")))
+    if err != nil {
+      fmt.Println("Wrong format entered for year, use YYYY")
+      fmt.Println(err)
+      return
+    }
+    (*year).YearNum = sheetYear
 
     (*year).MonthRecords = append((*year).MonthRecords, monthRec)
 
@@ -304,11 +347,6 @@ func readExcelFile(year *YearRec, path string) (YearRec, error) {
 
     monthRec.DayRecords = dayRecords
 
-    // Get Max and Min
-    // TODO remove
-    monthRec.MinDate = monthRec.DayRecords[0].Date
-    monthRec.MaxDate = monthRec.DayRecords[len(monthRec.DayRecords)-1].Date
-
     (*year).MonthRecords = append((*year).MonthRecords, monthRec)
 
     fmt.Print(".")
@@ -368,6 +406,7 @@ func main() {
   mux.HandleFunc("/writeExcel", writeExcel(&yearRecord))
   mux.HandleFunc("/writeJSON", writeJson(&yearRecord, "test.json"))
   mux.HandleFunc("/addSheet", addSheet(&yearRecord))
+  mux.HandleFunc("/addEntry", addEntry(&yearRecord))
   mux.HandleFunc("/", indexHandler(&yearRecord))
   http.ListenAndServe(":"+port, mux)
 

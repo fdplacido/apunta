@@ -10,7 +10,7 @@
 
 <h2>Apunta</h2>
 
-<form method="post">
+<form action="/addEntry" method="post">
   <div class="wrapper">
     <div class="box">Date</div>
     <div class="box">Category</div>
@@ -47,12 +47,18 @@
   <input type="submit" value="Write to Excel file">
 </form>
 
+<p class="bottom-one"></p>
+
 <form action="/writeJSON" method="post">
   <input type="submit" value="Write to JSON file">
 </form>
 
+<p class="bottom-one"></p>
+
 <form action="/addSheet" method="post">
-  <input type="text" class="input-field" name="sheetName"><br />
+  Sheet name: <input type="text" class="input-field" name="sheetName"><br />
+  Month number: <input type="text" class="input-field" name="monthNumber"><br />
+  {{if not .MonthRecords}}Sheet year (YYYY): <input type="text" class="input-field" name="sheetYear" required><br />{{end}}
   <input type="submit" value="Add a new sheet to the year record">
 </form>
 
