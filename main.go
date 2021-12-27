@@ -69,9 +69,9 @@ func (year *YearRec) indexHandler() http.HandlerFunc {
 // TODO do this only when writting the actual excel file
 // TODO there needs to be a stack of operations to do when saving
 // *******************************
-func addEntryToExcel(year *YearRec, ptrMonthRec *MonthRec, dayRecord *DayRec) {
+func (year *YearRec) addEntryToExcel(ptrMonthRec *MonthRec, dayRecord *DayRec) {
   // Add entry to actual file, at the bottom of the file
-  rows, err := (*year).excelFile.GetRows((*ptrMonthRec).MonthName)
+  rows, err := year.excelFile.GetRows((*ptrMonthRec).MonthName)
   if err != nil {
       fmt.Println(err)
   }
