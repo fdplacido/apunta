@@ -45,6 +45,9 @@ type MonthRec struct {
 type YearRec struct {
   excelFile       *excelize.File
   YearNum         int
+  Categories      []string
+  Payers          []string
+  Currencies      []string
   MonthRecords    []MonthRec
 }
 
@@ -102,6 +105,45 @@ func addEntryToExcel(year *YearRec, ptrMonthRec *MonthRec, dayRecord *DayRec) {
 }
 
 
+
+// *******************************
+// Add new category to the list
+// *******************************
+func addCategory(year *YearRec) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    newCategory := strings.TrimSpace(r.FormValue("newCategory"))
+    (*year).Categories = append((*year).Categories, newCategory)
+
+    tpl.Execute(w, *year)
+  }
+}
+
+
+// *******************************
+// Add new payer to the list
+// *******************************
+func addPayer(year *YearRec) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    newPayer := strings.TrimSpace(r.FormValue("newPayer"))
+    (*year).Payers = append((*year).Payers, newPayer)
+
+    tpl.Execute(w, *year)
+  }
+}
+
+// *******************************
+// Add new currency to the list
+// *******************************
+func addCurrency(year *YearRec) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    newCurrency := strings.TrimSpace(r.FormValue("newCurrency"))
+    (*year).Currencies = append((*year).Currencies, newCurrency)
+
+    tpl.Execute(w, *year)
+  }
+}
+
+
 // *******************************
 // Add new entry
 // *******************************
@@ -120,6 +162,7 @@ func addEntry(year *YearRec) http.HandlerFunc {
       return
     }
 
+    r.ParseForm()
     dayRecord := DayRec{
       Date: recDate,
       Category: r.FormValue("category"),
@@ -405,6 +448,11 @@ func main() {
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
   mux.HandleFunc("/writeExcel", writeExcel(&yearRecord))
   mux.HandleFunc("/writeJSON", writeJson(&yearRecord, "test.json"))
+
+  mux.HandleFunc("/addCategory", addCategory(&yearRecord))
+  mux.HandleFunc("/addWho", addPayer(&yearRecord))
+  mux.HandleFunc("/addCurrency", addCurrency(&yearRecord))
+
   mux.HandleFunc("/addSheet", addSheet(&yearRecord))
   mux.HandleFunc("/addEntry", addEntry(&yearRecord))
   mux.HandleFunc("/", indexHandler(&yearRecord))

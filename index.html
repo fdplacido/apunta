@@ -23,13 +23,28 @@
       <input type="date" class="input-field" id="entrydate" name="date">
     </div>
     <div class="box">
-      <input type="text" class="input-field" name="category"><br />
+      <select id="category" name="category">
+        {{ range.Categories }}
+        <option value="{{.}}">{{.}}</option>
+        {{ end }}
+      </select>
+      <!-- <input type="text" class="input-field" name="category"><br /> -->
     </div>
     <div class="box">
-      <input type="text" class="input-field" name="who"><br />
+      <select id="who" name="who">
+        {{ range.Payers }}
+        <option value="{{.}}">{{.}}</option>
+        {{ end }}
+      </select>
+      <!-- <input type="text" class="input-field" name="who"><br /> -->
     </div>
     <div class="box">
-      <input type="text" class="input-field" name="currency"><br />
+      <select id="currency" name="currency">
+        {{ range.Currencies }}
+        <option value="{{.}}">{{.}}</option>
+        {{ end }}
+      </select>
+      <!-- <input type="text" class="input-field" name="currency"><br /> -->
     </div>
     <div class="box">
       <input type="text" class="input-field" name="quantity"><br />
@@ -41,19 +56,36 @@
   </div>
 </form>
 
-<p class="bottom-one"></p>
+<p class="bottom-one"><hr/></p>
+
+<form action="/addCategory" method="post">
+  <input type="text" class="input-field" name="newCategory"><br />
+  <input type="submit" value="Add new category label">
+</form>
+
+<form action="/addWho" method="post">
+  <input type="text" class="input-field" name="newPayer"><br />
+  <input type="submit" value="Add new person label (*special all)">
+</form>
+
+<form action="/addCurrency" method="post">
+  <input type="text" class="input-field" name="newCurrency"><br />
+  <input type="submit" value="Add new currency">
+</form>
+
+<p class="bottom-one"><hr/></p>
 
 <form action="/writeExcel" method="post">
   <input type="submit" value="Write to Excel file">
 </form>
 
-<p class="bottom-one"></p>
+<p class="bottom-one"><hr/></p>
 
 <form action="/writeJSON" method="post">
   <input type="submit" value="Write to JSON file">
 </form>
 
-<p class="bottom-one"></p>
+<p class="bottom-one"><hr/></p>
 
 <form action="/addSheet" method="post">
   Sheet name: <input type="text" class="input-field" name="sheetName"><br />
@@ -62,7 +94,7 @@
   <input type="submit" value="Add a new sheet to the year record">
 </form>
 
-<p class="bottom-one"></p>
+<p class="bottom-one"><hr/></p>
 
 <div class="warpper">
   {{ range.MonthRecords }}
