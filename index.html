@@ -66,7 +66,7 @@
 
 <form action="/addWho" method="post">
   <input type="text" class="input-field" name="newPayer"><br />
-  <input type="submit" value="Add new person label (*special all)">
+  <input type="submit" value="Add new person label">
 </form>
 
 <form action="/addCurrency" method="post">
@@ -109,9 +109,11 @@
   </div>
   <div class="panels">
     {{ range.MonthRecords }}
-
     <div class="panel" id="{{.MonthName}}-panel">
       <div class="panel-title">{{.MonthName}}</div>
+      {{ range $key, $value := .Stats.AllPayersStats }}
+      {{ $key }}: {{ $value.Spent }}
+      {{ end }}
       <div class="wrapper">
         {{ range .DayRecords }}
         <div class="box">{{.Date.Format "2006 Jan 02"}}</div>

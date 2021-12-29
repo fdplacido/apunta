@@ -34,12 +34,23 @@ type CurrencyEntry struct {
   AvgVal    float64
 }
 
+type PayerStats struct {
+  Spent  float64
+  Accum  float64
+  Debt   float64
+}
+
+type MonthStats struct {
+  AllPayersStats map[string]PayerStats
+}
+
 type MonthRec struct {
-  MonthName   string
-  MonthNum    int
-  ActiveMonth bool
-  CurrStore   CurrencyEntry
-  DayRecords  []DayRec
+  MonthName      string
+  MonthNum       int
+  ActiveMonth    bool
+  CurrStore      CurrencyEntry
+  Stats          MonthStats
+  DayRecords     []DayRec
 }
 
 type YearRec struct {
@@ -60,8 +71,44 @@ var inputFileRead = false
 // *******************************
 func (year *YearRec) indexHandler() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
+
+    // Make monthly statistics if there are none
+    for index, month := range year.MonthRecords {
+      // TODO Introduce checks to not calculate this every time
+      year.MonthRecords[index].Stats = month.calcStats()
+    }
+
     tpl.Execute(w, year)
   }
+}
+
+
+// *******************************
+// Calculate statistics for this month
+// *******************************
+func (month *MonthRec) calcStats() MonthStats {
+
+  if month.Stats.AllPayersStats == nil {
+    month.Stats.AllPayersStats = map[string]PayerStats{}
+  }
+
+  for _, dayRec := range month.DayRecords {
+    if stats, ok := month.Stats.AllPayersStats[dayRec.Who]; ok {
+      // Key already thare, add
+      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        stats.Spent += convFloat
+        month.Stats.AllPayersStats[dayRec.Who] = stats
+      }
+    } else {
+      // no key, just create the value
+      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        stats = PayerStats{convFloat, 0.0, 0.0}
+        month.Stats.AllPayersStats[dayRec.Who] = stats
+      }
+    }
+  }
+
+  return month.Stats
 }
 
 // *******************************
@@ -105,6 +152,26 @@ func (year *YearRec) addEntryToExcel(ptrMonthRec *MonthRec, dayRecord *DayRec) {
 }
 
 
+// *******************************
+// Create an empty MonthRec
+// *******************************
+func newMonthRec() *MonthRec {
+  monthRecord := &MonthRec{}
+  monthRecord.ActiveMonth = true
+  monthRecord.Stats.AllPayersStats = map[string]PayerStats{}
+  return monthRecord
+}
+
+
+
+// *******************************
+// Create an empty YearRec
+// *******************************
+func newYearRec() *YearRec {
+  yearRecord := &YearRec{}
+  yearRecord.Payers = append(yearRecord.Payers, "All")
+  return yearRecord
+}
 
 // *******************************
 // Add new category to the list
@@ -243,9 +310,7 @@ func (year *YearRec) writeJson(fileName string) http.HandlerFunc {
 func (year *YearRec) addSheet() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
-    monthRec := MonthRec{
-      ActiveMonth: true,
-    }
+    monthRec := newMonthRec()
     monthRec.MonthName = strings.TrimSpace(r.FormValue("sheetName"))
     monthNum, err := strconv.Atoi(strings.TrimSpace(r.FormValue("monthNumber")))
     if err != nil {
@@ -262,7 +327,7 @@ func (year *YearRec) addSheet() http.HandlerFunc {
     }
     year.YearNum = sheetYear
 
-    year.MonthRecords = append(year.MonthRecords, monthRec)
+    year.MonthRecords = append(year.MonthRecords, *monthRec)
 
     tpl.Execute(w, year)
   }
@@ -404,7 +469,7 @@ func (year *YearRec) readExcelFile(path string) error {
 func main() {
   port := "3000"
 
-  yearRecord := YearRec{}
+  yearRecord := newYearRec()
 
   // Check input file type
   if inputFileRead == false && len(os.Args) == 2 {
