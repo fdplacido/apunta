@@ -92,7 +92,16 @@ func (month *MonthRec) calcStats() MonthStats {
     month.Stats.AllPayersStats = map[string]PayerStats{}
   }
 
+  allSpent := make([]float64, 0)
   for _, dayRec := range month.DayRecords {
+    // Store special cases for all to process at the end
+    if dayRec.Who == "B" || dayRec.Who == "All" {
+      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        allSpent = append(allSpent, convFloat)
+      }
+      continue
+    }
+
     if stats, ok := month.Stats.AllPayersStats[dayRec.Who]; ok {
       // Key already thare, add
       if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
@@ -105,6 +114,15 @@ func (month *MonthRec) calcStats() MonthStats {
         stats = PayerStats{convFloat, 0.0, 0.0}
         month.Stats.AllPayersStats[dayRec.Who] = stats
       }
+    }
+  }
+
+  // Divide "All" costs between all payers
+  numPayers := float64(len(month.Stats.AllPayersStats))
+  for _, entrySpent := range allSpent {
+    for key, value := range month.Stats.AllPayersStats {
+      value.Spent += entrySpent/numPayers
+      month.Stats.AllPayersStats[key] = PayerStats{value.Spent, 0.0, 0.0}
     }
   }
 
