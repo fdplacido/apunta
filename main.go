@@ -72,10 +72,20 @@ var inputFileRead = false
 func (year *YearRec) indexHandler() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
+    // Sort months by number
+    year.sortMonthsByDate()
+
     // Make monthly statistics if there are none
     for index, month := range year.MonthRecords {
       // TODO Introduce checks to not calculate this every time
-      year.MonthRecords[index].Stats = month.calcStats()
+      prevMonthNum := month.MonthNum - 1
+      if prevMonthNum < 1 {
+        year.MonthRecords[index].Stats = month.calcStats(nil)
+      } else {
+        if index - 1 > 0 {
+          year.MonthRecords[index].Stats = month.calcStats(&(year.MonthRecords[index - 1]))
+        }
+      }
     }
 
     tpl.Execute(w, year)
@@ -86,32 +96,44 @@ func (year *YearRec) indexHandler() http.HandlerFunc {
 // *******************************
 // Calculate statistics for this month
 // *******************************
-func (month *MonthRec) calcStats() MonthStats {
+func (month *MonthRec) calcStats(prevMonth *MonthRec) MonthStats {
 
   if month.Stats.AllPayersStats == nil {
     month.Stats.AllPayersStats = map[string]PayerStats{}
   }
 
+  // Get previous month debts, add them to Accumulated for this month
+  if prevMonth != nil && month.MonthNum > 1 {
+    for key, value := range month.Stats.AllPayersStats {
+      if prevStats, prevOk := prevMonth.Stats.AllPayersStats[key]; prevOk {
+        value.Accum += prevStats.Debt
+        month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
+      }
+    }
+  }
+
+  // Calculate spent
   allSpent := make([]float64, 0)
   for _, dayRec := range month.DayRecords {
-    // Store special cases for all to process at the end
+    // Store special case for all to process at the end
+    // Skip special case statistics
     if dayRec.Who == "B" || dayRec.Who == "All" {
-      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        allSpent = append(allSpent, convFloat)
+      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        allSpent = append(allSpent, convQuantity)
       }
       continue
     }
 
     if stats, ok := month.Stats.AllPayersStats[dayRec.Who]; ok {
       // Key already thare, add
-      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        stats.Spent += convFloat
+      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        stats.Spent += convQuantity
         month.Stats.AllPayersStats[dayRec.Who] = stats
       }
     } else {
       // no key, just create the value
-      if convFloat, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        stats = PayerStats{convFloat, 0.0, 0.0}
+      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
+        stats = PayerStats{convQuantity, 0.0, 0.0}
         month.Stats.AllPayersStats[dayRec.Who] = stats
       }
     }
@@ -122,8 +144,29 @@ func (month *MonthRec) calcStats() MonthStats {
   for _, entrySpent := range allSpent {
     for key, value := range month.Stats.AllPayersStats {
       value.Spent += entrySpent/numPayers
-      month.Stats.AllPayersStats[key] = PayerStats{value.Spent, 0.0, 0.0}
+      month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
     }
+  }
+
+  // Calculate Accumulated for all payers
+  for key, value := range month.Stats.AllPayersStats {
+    value.Accum += value.Spent
+    month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
+  }
+
+  // Calculate Debt between all payers
+  totalAccum := 0.0
+  for _, value := range month.Stats.AllPayersStats {
+    totalAccum += value.Accum
+  }
+  amountAllPay := totalAccum / float64(len(month.Stats.AllPayersStats))
+  for key, value := range month.Stats.AllPayersStats {
+    if value.Accum >= amountAllPay {
+      value.Debt = 0.0
+    } else {
+      value.Debt = amountAllPay - value.Accum
+    }
+    month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
   }
 
   return month.Stats
@@ -286,6 +329,15 @@ func (year *YearRec) addEntry() http.HandlerFunc {
 func (month *MonthRec) sortRecordsByDate() {
   sort.SliceStable(month.DayRecords, func(i, j int) bool {
     return month.DayRecords[i].Date.Before(month.DayRecords[j].Date)
+  })
+}
+
+// *******************************
+// Sort months by ascending date within a year
+// *******************************
+func (year *YearRec) sortMonthsByDate() {
+  sort.SliceStable(year.MonthRecords, func(i, j int) bool {
+    return year.MonthRecords[i].MonthNum < year.MonthRecords[j].MonthNum
   })
 }
 

@@ -112,7 +112,10 @@
     <div class="panel" id="{{.MonthName}}-panel">
       <div class="panel-title">{{.MonthName}}</div>
       {{ range $key, $value := .Stats.AllPayersStats }}
-      {{ $key }}: {{ $value.Spent }}
+        {{ $key }}<br>
+        Spent: {{ $value.Spent }}<br>
+        Accum: {{ $value.Accum }}<br>
+        Debt: {{ $value.Debt }}<br>
       {{ end }}
       <div class="wrapper">
         {{ range .DayRecords }}
