@@ -97,20 +97,22 @@
 
 <p class="bottom-one"><hr/></p>
 
-<div class="warpper">
+<div class="monthWrapper">
+  <form action="/changeSheet" method="post">
+    <div class="box">
+      Change month to:
+      <select id="changeSheet" name="changeSheet">
+        {{ range.MonthRecords }}
+        <option value="{{.MonthName}}">{{.MonthName}}</option>
+        {{ end }}
+      </select>
+    </div>
+    <input type="submit" value="Change month">
+  </form>
+
   {{ range.MonthRecords }}
-  <!-- <input class="radio" id="one" name="group" type="radio" checked> -->
-  <input class="radio" id="{{.MonthName}}" name="group" type="radio" {{ if .ActiveMonth }}checked{{ end }}>
-  {{ end }}
-  <div class="tabs">
-    {{ range.MonthRecords }}
-    <label class="tab" id="{{.MonthName}}-tab" for="{{.MonthName}}">{{.MonthName}}</label>
-    {{ end }}
-  </div>
-  <div class="panels">
-    {{ range.MonthRecords }}
-    <div class="panel" id="{{.MonthName}}-panel">
-      <div class="panel-title">{{.MonthName}}</div>
+    {{ if .ActiveMonth }}
+      Month name: {{.MonthName}}<br>
       {{ range $key, $value := .Stats.AllPayersStats }}
         {{ $key }}<br>
         Spent: {{ $value.Spent }}<br>
@@ -127,9 +129,9 @@
         <div class="box">{{.Comment}}</div>
         {{ end }}
       </div>
-    </div>
-    {{end}}
-  </div>
+    {{ end}}
+  {{ end }}
+
 </div>
 
 </body>
