@@ -308,13 +308,41 @@ func (year *YearRec) addEntry() http.HandlerFunc {
         // Check if there is an exchange rate for this month
         if year.MonthRecords[index].CurrStore.AvgVal == 0.0 {
           // Get exchange rate from openexchangerates
-          year.MonthRecords[index].CurrStore.AvgVal = exchRages.GetRate("CHF", "EUR")
+          rate, err := exchRages.GetRate("CHF", "EUR")
+          if err != nil {
+            fmt.Println(err)
+          }
+          year.MonthRecords[index].CurrStore.AvgVal = rate
           fmt.Println("Got exchange rate: ", year.MonthRecords[index].CurrStore.AvgVal)
         }
 
         year.MonthRecords[index].DayRecords = append(year.MonthRecords[index].DayRecords, dayRecord)
         year.MonthRecords[index].sortRecordsByDate()
         break
+      }
+    }
+
+    tpl.Execute(w, year)
+  }
+}
+
+
+// *******************************
+// Change active month to selected month
+// *******************************
+func (year *YearRec) changeToSheet() http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+
+    r.ParseForm()
+    selectedSheet := r.FormValue("changeSheet")
+
+    for index, month := range year.MonthRecords {
+      if selectedSheet != month.MonthName {
+        month.ActiveMonth = false
+        year.MonthRecords[index] = month
+      } else {
+        month.ActiveMonth = true
+        year.MonthRecords[index] = month
       }
     }
 
@@ -587,6 +615,8 @@ func main() {
   mux.HandleFunc("/addCategory", yearRecord.addCategory())
   mux.HandleFunc("/addWho", yearRecord.addPayer())
   mux.HandleFunc("/addCurrency", yearRecord.addCurrency())
+
+  mux.HandleFunc("/changeSheet", yearRecord.changeToSheet())
 
   mux.HandleFunc("/addSheet", yearRecord.addSheet())
   mux.HandleFunc("/addEntry", yearRecord.addEntry())
