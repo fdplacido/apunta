@@ -1,5 +1,7 @@
 # Apunta
 
+Note down expenses for a period of time
+
 ```sh
 go build
 
