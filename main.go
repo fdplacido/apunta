@@ -56,6 +56,7 @@ type MonthRec struct {
 type YearRec struct {
   excelFile       *excelize.File
   YearNum         int
+  PrevYearDebt    map[string]float64
   Categories      []string
   Payers          []string
   Currencies      []string
@@ -82,9 +83,7 @@ func (year *YearRec) indexHandler() http.HandlerFunc {
       if prevMonthNum < 1 {
         year.MonthRecords[index].Stats = month.calcStats(nil)
       } else {
-        if index - 1 > 0 {
-          year.MonthRecords[index].Stats = month.calcStats(&(year.MonthRecords[index - 1]))
-        }
+        year.MonthRecords[index].Stats = month.calcStats(&(year.MonthRecords[index - 1]))
       }
     }
 
@@ -99,6 +98,9 @@ func (year *YearRec) indexHandler() http.HandlerFunc {
 func (month *MonthRec) calcStats(prevMonth *MonthRec) MonthStats {
 
   if month.Stats.AllPayersStats == nil {
+    month.Stats.AllPayersStats = map[string]PayerStats{}
+  } else {
+    // Reset stats if recalculating the whole month
     month.Stats.AllPayersStats = map[string]PayerStats{}
   }
 
@@ -155,16 +157,24 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec) MonthStats {
   }
 
   // Calculate Debt between all payers
+  // Find top payer and equal all other payers to pay as much as the top
   totalAccum := 0.0
+  topAmount := 0.0
   for _, value := range month.Stats.AllPayersStats {
+    // Save top payer
+    if value.Accum > topAmount {
+      topAmount = value.Accum
+    }
+
     totalAccum += value.Accum
   }
-  amountAllPay := totalAccum / float64(len(month.Stats.AllPayersStats))
+
+  amountAllPay := totalAccum / float64(len(month.Stats.AllPayersStats) - 1)
   for key, value := range month.Stats.AllPayersStats {
-    if value.Accum >= amountAllPay {
+    if value.Accum >= topAmount {
       value.Debt = 0.0
     } else {
-      value.Debt = amountAllPay - value.Accum
+      value.Debt = topAmount - value.Accum
     }
     month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
   }
@@ -273,6 +283,28 @@ func (year *YearRec) addCurrency() http.HandlerFunc {
 
 
 // *******************************
+// Add previous year debt data
+// *******************************
+func (year *YearRec) addPreviousYearDebts() http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+
+    prevYearName := strings.TrimSpace(r.FormValue("prevYearDebtName"))
+    prevYearAmount := strings.TrimSpace(r.FormValue("prevYearDebtAmount"))
+
+    if year.PrevYearDebt == nil {
+      year.PrevYearDebt = map[string]float64{}
+    }
+
+    if convQuantity, err := strconv.ParseFloat(prevYearAmount, 64); err == nil {
+      year.PrevYearDebt[prevYearName] = convQuantity
+    }
+
+    tpl.Execute(w, year)
+  }
+}
+
+
+// *******************************
 // Add new entry
 // *******************************
 func (year *YearRec) addEntry() http.HandlerFunc {
@@ -319,6 +351,18 @@ func (year *YearRec) addEntry() http.HandlerFunc {
         year.MonthRecords[index].DayRecords = append(year.MonthRecords[index].DayRecords, dayRecord)
         year.MonthRecords[index].sortRecordsByDate()
         break
+      }
+    }
+
+    // Recalculate month statistics
+    for index, month := range year.MonthRecords {
+      // TODO Introduce checks to not calculate this every time
+      // TODO calculate only from current month, without the previous ones
+      prevMonthNum := month.MonthNum - 1
+      if prevMonthNum < 1 {
+        year.MonthRecords[index].Stats = month.calcStats(nil)
+      } else {
+        year.MonthRecords[index].Stats = month.calcStats(&(year.MonthRecords[index - 1]))
       }
     }
 
@@ -610,7 +654,7 @@ func main() {
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
   mux.HandleFunc("/writeExcel", yearRecord.writeExcel())
-  mux.HandleFunc("/writeJSON", yearRecord.writeJson("test.json"))
+  mux.HandleFunc("/writeJSON", yearRecord.writeJson("test_1.json"))
 
   mux.HandleFunc("/addCategory", yearRecord.addCategory())
   mux.HandleFunc("/addWho", yearRecord.addPayer())
