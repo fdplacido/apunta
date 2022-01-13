@@ -104,8 +104,7 @@ Previous year data:
 
 <form action="/addSheet" method="post">
   Sheet name: <input type="text" class="input-field" name="sheetName"><br />
-  Month number: <input type="text" class="input-field" name="monthNumber"><br />
-  {{if not .MonthRecords}}Sheet year (YYYY): <input type="text" class="input-field" name="sheetYear" required><br />{{end}}
+  Input month-year: <input type="month" id="monthYearSheet" name="monthYearSheet" min="2022-01" value="2022-01">
   <input type="submit" value="Add a new sheet to the year record">
 </form>
 

@@ -109,6 +109,8 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
       if prevStats, prevOk := prevMonth.Stats.AllPayersStats[key]; prevOk {
         value.Accum += (-1 * prevStats.Debt)
         month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
+      } else {
+        month.Stats.AllPayersStats[key] = PayerStats{value.Spent, (-1 * prevStats.Debt), value.Debt}
       }
     }
   }
@@ -462,20 +464,29 @@ func (year *YearRec) addSheet() http.HandlerFunc {
 
     monthRec := newMonthRec()
     monthRec.MonthName = strings.TrimSpace(r.FormValue("sheetName"))
-    monthNum, err := strconv.Atoi(strings.TrimSpace(r.FormValue("monthNumber")))
+
+    if monthRec.MonthName == "" {
+      monthRec.MonthName = r.FormValue("monthYearSheet")
+    }
+
+    monthYearSlice := strings.Split(r.FormValue("monthYearSheet"), "-")
+
+    monthNum, err := strconv.Atoi(monthYearSlice[0])
     if err != nil {
       fmt.Println(err)
       return
     }
     monthRec.MonthNum = monthNum
 
-    sheetYear, err := strconv.Atoi(strings.TrimSpace(r.FormValue("sheetYear")))
+    sheetYear, err := strconv.Atoi(monthYearSlice[1])
     if err != nil {
-      fmt.Println("Wrong format entered for year, use YYYY")
       fmt.Println(err)
       return
     }
     year.YearNum = sheetYear
+
+    monthRec.MonthNum, err = strconv.Atoi(monthYearSlice[0])
+    year.YearNum, err = strconv.Atoi(monthYearSlice[1])
 
     year.MonthRecords = append(year.MonthRecords, *monthRec)
 
