@@ -76,16 +76,16 @@
 
 <p class="bottom-one"><hr/></p>
 
-Input previous year debt data:
-<form action="/inputPreviousYearDebts" method="post">
-  Previous year debtor name: <input type="text" class="input-field" name="prevYearDebtName"><br />
-  Previous year debt amount: <input type="text" class="input-field" name="prevYearDebtAmount"><br />
-  <input type="submit" value="Submit previous year data">
+Input previous debt data:
+<form action="/inputPreviousDebts" method="post">
+  Previous debtor name: <input type="text" class="input-field" name="prevDebtName"><br />
+  Previous debt amount: <input type="text" class="input-field" name="prevDebtAmount"><br />
+  <input type="submit" value="Submit previous debt data">
 </form>
 
 Previous year data:
-{{ range $key, $value := .PrevYearDebt }}
-$key: $value<br />
+{{ range $name, $value := .PrevDebt }}
+{{ $name }}: {{ $value }}<br />
 {{ end }}
 
 <p class="bottom-one"><hr/></p>
