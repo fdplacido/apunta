@@ -90,12 +90,6 @@ Previous year data:
 
 <p class="bottom-one"><hr/></p>
 
-<form action="/writeExcel" method="post">
-  <input type="submit" value="Write to Excel file">
-</form>
-
-<p class="bottom-one"><hr/></p>
-
 <form action="/writeJSON" method="post">
   <input type="submit" value="Write to JSON file">
 </form>
@@ -115,17 +109,17 @@ Previous year data:
     <div class="box">
       Change month to:
       <select id="changeSheet" name="changeSheet">
-        {{ range.MonthRecords }}
-        <option value="{{.MonthName}}">{{.MonthName}}</option>
+        {{ range.MonthRecs }}
+        <option value="{{.GroupName}}">{{.GroupName}}</option>
         {{ end }}
       </select>
     </div>
     <input type="submit" value="Change month">
   </form>
 
-  {{ range.MonthRecords }}
-    {{ if .ActiveMonth }}
-      Month name: {{.MonthName}}<br>
+  {{ range .MonthRecs }}
+    {{ if .ActiveGroup }}
+      Month name: {{.GroupName}}<br>
       {{ range $key, $value := .Stats.AllPayersStats }}
         {{ $key }}<br>
         Spent: {{ $value.Spent }}<br>
@@ -133,12 +127,12 @@ Previous year data:
         Debt: {{ $value.Debt }}<br>
       {{ end }}
       <div class="wrapper">
-        {{ range .DayRecords }}
+        {{ range .EntryRecords }}
         <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
         <div class="box">{{.Category}}</div>
-        <div class="box">{{.Who}}</div>
+        <div class="box">{{.PersonName}}</div>
         <div class="box">{{.Currency}}</div>
-        <div class="box">{{.Quantity}}</div>
+        <div class="box">{{.Amount}}</div>
         <div class="box">{{.Comment}}</div>
         {{ end }}
       </div>

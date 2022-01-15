@@ -4,7 +4,6 @@ import (
   "fmt"
   "net/http"
   "html/template"
-  "errors"
   "time"
   "strings"
   "strconv"
@@ -15,20 +14,18 @@ import (
   "io/ioutil"
 
   "apunta/exchRates"
-
-  "github.com/xuri/excelize/v2"
 )
 
-type DayRec struct {
-  Date     time.Time
-  Category string
-  Who      string
-  Currency string
-  Quantity string
-  Comment  string
+type EntryRec struct {
+  Date       time.Time
+  Category   string
+  PersonName string
+  Currency   string
+  Amount     float64
+  Comment    string
 }
 
-type CurrencyEntry struct {
+type ExRateEntry struct {
   CurrFrom  string
   CurrTo    string
   AvgVal    float64
@@ -45,22 +42,20 @@ type MonthStats struct {
 }
 
 type MonthRec struct {
-  MonthName      string
-  MonthNum       int
-  ActiveMonth    bool
-  CurrStore      CurrencyEntry
-  Stats          MonthStats
-  DayRecords     []DayRec
+  StartDate    time.Time
+  GroupName    string
+  ActiveGroup  bool
+  AvgExch      ExRateEntry
+  Stats        MonthStats
+  EntryRecords []EntryRec
 }
 
-type YearRec struct {
-  excelFile       *excelize.File
-  YearNum         int
-  PrevDebt        map[string]float64
-  Categories      []string
-  Payers          []string
-  Currencies      []string
-  MonthRecords    []MonthRec
+type Document struct {
+  PrevDebt     map[string]float64
+  Categories   []string
+  Payers       []string
+  Currencies   []string
+  MonthRecs    []MonthRec
 }
 
 // Global stuff
@@ -71,15 +66,16 @@ var inputFileRead = false
 // *******************************
 // Entry point from loaded or empty entries
 // *******************************
-func (year *YearRec) indexHandler() http.HandlerFunc {
+func (doc *Document) indexHandler() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
-    // Sort months by number
-    year.sortMonthsByDate()
+    // TODO this should't be called every time, they should always be sorted
+    doc.sortMonthsByDate()
 
-    year.calcAllStats()
+    // TODO don't recalculate stats on just opening a file
+    doc.calcAllStats()
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
@@ -92,7 +88,7 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
   month.Stats.AllPayersStats = map[string]PayerStats{}
 
   // Include previous file debt data for first month
-  if month.MonthNum == 1 {
+  if prevMonth == nil {
     for name, debtValue := range prevDebtData {
       if stats, ok := month.Stats.AllPayersStats[name]; ok {
         stats.Accum += (-1 * debtValue)
@@ -101,10 +97,7 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
         month.Stats.AllPayersStats[name] = PayerStats{0.0, debtValue * -1.0, 0.0}
       }
     }
-  }
-
-  // Get previous month debts, add them to Accumulated for this month
-  if prevMonth != nil && month.MonthNum > 1 {
+  } else { // Get previous month debts, add them to Accumulated for this month
     for key, value := range month.Stats.AllPayersStats {
       if prevStats, prevOk := prevMonth.Stats.AllPayersStats[key]; prevOk {
         value.Accum += (-1 * prevStats.Debt)
@@ -117,28 +110,22 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
 
   // Calculate spent
   allSpent := make([]float64, 0)
-  for _, dayRec := range month.DayRecords {
+  for _, dayRec := range month.EntryRecords {
     // Store special case for all to process at the end
     // Skip special case statistics
-    if dayRec.Who == "B" || dayRec.Who == "All" {
-      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        allSpent = append(allSpent, convQuantity)
-      }
+    if dayRec.PersonName == "B" || dayRec.PersonName == "All" {
+      allSpent = append(allSpent, dayRec.Amount)
       continue
     }
 
-    if stats, ok := month.Stats.AllPayersStats[dayRec.Who]; ok {
+    if stats, ok := month.Stats.AllPayersStats[dayRec.PersonName]; ok {
       // Key already thare, add
-      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        stats.Spent += convQuantity
-        month.Stats.AllPayersStats[dayRec.Who] = stats
-      }
+      stats.Spent += dayRec.Amount
+      month.Stats.AllPayersStats[dayRec.PersonName] = stats
     } else {
       // no key, just create the value
-      if convQuantity, err := strconv.ParseFloat(dayRec.Quantity, 64); err == nil {
-        stats = PayerStats{convQuantity, 0.0, 0.0}
-        month.Stats.AllPayersStats[dayRec.Who] = stats
-      }
+      stats = PayerStats{dayRec.Amount, 0.0, 0.0}
+      month.Stats.AllPayersStats[dayRec.PersonName] = stats
     }
   }
 
@@ -182,102 +169,76 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
   return month.Stats
 }
 
-// *******************************
-// Add Entry to the Excel file
-// TODO do this only when writting the actual excel file
-// TODO there needs to be a stack of operations to do when saving
-// *******************************
-func (year *YearRec) addEntryToExcel(ptrMonthRec *MonthRec, dayRecord *DayRec) {
-  // Add entry to actual file, at the bottom of the file
-  rows, err := year.excelFile.GetRows((*ptrMonthRec).MonthName)
-  if err != nil {
-      fmt.Println(err)
-  }
-
-  lastRow := len(rows)
-  // TODO row may brake columns to the right
-  insertErr := year.excelFile.InsertRow((*ptrMonthRec).MonthName, lastRow)
-  if insertErr != nil {
-      fmt.Println(insertErr)
-  }
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("A%d", lastRow), (*dayRecord).Date.Format("02/01/06"))
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("B%d", lastRow), (*dayRecord).Category)
-  if (*dayRecord).Who == "A" {
-    if (*dayRecord).Currency == "EUR" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("C%d", lastRow), (*dayRecord).Quantity)
-    } else if (*dayRecord).Currency == "CHF" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("D%d", lastRow), (*dayRecord).Quantity)
-    }
-  } else if (*dayRecord).Who == "P" {
-    if (*dayRecord).Currency == "EUR" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("E%d", lastRow), (*dayRecord).Quantity)
-    } else if (*dayRecord).Currency == "CHF" {
-      year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("F%d", lastRow), (*dayRecord).Quantity)
-    }
-  } else if (*dayRecord).Who == "B" {
-    year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("G%d", lastRow), (*dayRecord).Quantity)
-  }
-  year.excelFile.SetCellValue((*ptrMonthRec).MonthName, fmt.Sprintf("H%d", lastRow), (*dayRecord).Comment)
-
-  fmt.Println("Inserted: ", (*dayRecord))
-}
-
 
 // *******************************
 // Create an empty MonthRec
 // *******************************
 func newMonthRec() *MonthRec {
   monthRecord := &MonthRec{}
-  monthRecord.ActiveMonth = true
+  monthRecord.ActiveGroup = false
   monthRecord.Stats.AllPayersStats = map[string]PayerStats{}
   return monthRecord
 }
 
 
-
 // *******************************
-// Create an empty YearRec
+// Create an empty Document
 // *******************************
-func newYearRec() *YearRec {
-  yearRecord := &YearRec{}
-  yearRecord.Payers = append(yearRecord.Payers, "All")
-  return yearRecord
+func newDocument() *Document {
+  doc := &Document{}
+  // Always have the "All" payers
+  doc.Payers = append(doc.Payers, "All")
+  return doc
 }
+
 
 // *******************************
 // Add new category to the list
 // *******************************
-func (year *YearRec) addCategory() http.HandlerFunc {
+func (doc *Document) addCategory() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     newCategory := strings.TrimSpace(r.FormValue("newCategory"))
-    year.Categories = append(year.Categories, newCategory)
+    doc.Categories = append(doc.Categories, newCategory)
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
+}
+
+
+// *******************************
+// Prepend string with fewer allocations,
+// compared to using compose literal append([]string{1}, x...)
+// *******************************
+func prependStr(x []string, y string) []string {
+    x = append(x, "")
+    copy(x[1:], x)
+    x[0] = y
+    return x
 }
 
 
 // *******************************
 // Add new payer to the list
 // *******************************
-func (year *YearRec) addPayer() http.HandlerFunc {
+func (doc *Document) addPayer() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     newPayer := strings.TrimSpace(r.FormValue("newPayer"))
-    year.Payers = append(year.Payers, newPayer)
+    // Put new payer on top
+    doc.Payers = prependStr(doc.Payers, newPayer)
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
 // *******************************
 // Add new currency to the list
 // *******************************
-func (year *YearRec) addCurrency() http.HandlerFunc {
+func (doc *Document) addCurrency() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     newCurrency := strings.TrimSpace(r.FormValue("newCurrency"))
-    year.Currencies = append(year.Currencies, newCurrency)
+    doc.Currencies = append(doc.Currencies, newCurrency)
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
@@ -285,41 +246,60 @@ func (year *YearRec) addCurrency() http.HandlerFunc {
 // *******************************
 // Calculate all months statistics
 // *******************************
-func (year *YearRec) calcAllStats() {
+func (doc *Document) calcAllStats() {
   // Recalculate month statistics
-  for index, month := range year.MonthRecords {
+  // Months sorted by date is assumed
+  for index, month := range doc.MonthRecs {
     // TODO Introduce checks to not calculate this every time
     // TODO calculate only from current month, without the previous ones
-    prevMonthNum := month.MonthNum - 1
-    if prevMonthNum < 1 {
-      year.MonthRecords[index].Stats = month.calcStats(nil, year.PrevDebt)
+    if index == 0 {
+      fmt.Println("calculating first month")
+      doc.MonthRecs[index].Stats = month.calcStats(nil, doc.PrevDebt)
     } else {
-      year.MonthRecords[index].Stats = month.calcStats(&(year.MonthRecords[index - 1]), year.PrevDebt)
+      fmt.Println("calculating other month")
+      // TODO probably doesn't need a pointer to all the data
+      doc.MonthRecs[index].Stats = month.calcStats(&(doc.MonthRecs[index - 1]), doc.PrevDebt)
     }
   }
 }
 
 
 // *******************************
-// Add previous year debt data
+// Add previous document debt data
+// This is a manual step to be introduced by the user
 // *******************************
-func (year *YearRec) addPreviousDebts() http.HandlerFunc {
+func (doc *Document) addPreviousDebts() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
     prevName := strings.TrimSpace(r.FormValue("prevDebtName"))
     prevAmount := strings.TrimSpace(r.FormValue("prevDebtAmount"))
 
-    if year.PrevDebt == nil {
-      year.PrevDebt = map[string]float64{}
+    if doc.PrevDebt == nil {
+      doc.PrevDebt = map[string]float64{}
     }
 
     if convQuantity, err := strconv.ParseFloat(prevAmount, 64); err == nil {
-      year.PrevDebt[prevName] = convQuantity
+      doc.PrevDebt[prevName] = convQuantity
     }
 
-    year.calcAllStats()
+    doc.calcAllStats()
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
+  }
+}
+
+
+// *******************************
+// Helper function to check if month and year are the same for two dates
+// *******************************
+func isSameMonthYear(a, b time.Time) bool {
+  aM := int(a.Month())
+  bM := int(b.Month())
+
+  if (aM == bM) && (a.Year() == b.Year()) {
+    return true
+  } else {
+    return false
   }
 }
 
@@ -327,7 +307,7 @@ func (year *YearRec) addPreviousDebts() http.HandlerFunc {
 // *******************************
 // Add new entry
 // *******************************
-func (year *YearRec) addEntry() http.HandlerFunc {
+func (doc *Document) addEntry() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     // Add entry from form
     recDate, err := time.Parse("2006-01-02", strings.TrimSpace(r.FormValue("date")))
@@ -336,47 +316,48 @@ func (year *YearRec) addEntry() http.HandlerFunc {
       recDate = time.Time{}
     }
 
-    // Check correct year
-    if recDate.Year() != year.YearNum {
-      fmt.Println("Chosen date belongs to a different year")
-      return
-    }
-
     r.ParseForm()
-    dayRecord := DayRec{
+
+    entry := EntryRec{
       Date: recDate,
       Category: r.FormValue("category"),
-      Who: r.FormValue("who"),
+      PersonName: r.FormValue("who"),
       Currency: r.FormValue("currency"),
-      Quantity: r.FormValue("quantity"),
+      Amount: 0.0,
       Comment: r.FormValue("comment"),
     }
 
-    // Find correct month to insert to
-    for index, month := range year.MonthRecords {
-      if (int(recDate.Month())) == month.MonthNum {
+    if convAmount, err := strconv.ParseFloat(r.FormValue("quantity"), 64); err == nil {
+      entry.Amount = convAmount
+    } else {
+      fmt.Println("There was an error processing the quantity input: not a float64")
+    }
 
-        fmt.Println("Average exch rate for this month: ", year.MonthRecords[index].CurrStore.AvgVal)
+    // Find correct month to insert to
+    for index, month := range doc.MonthRecs {
+      if isSameMonthYear(recDate, month.StartDate) {
+
+        fmt.Println("Average exch rate for this month: ", doc.MonthRecs[index].AvgExch.AvgVal)
         // Check if there is an exchange rate for this month
-        if year.MonthRecords[index].CurrStore.AvgVal == 0.0 {
+        if doc.MonthRecs[index].AvgExch.AvgVal == 0.0 {
           // Get exchange rate from openexchangerates
           rate, err := exchRages.GetRate("CHF", "EUR")
           if err != nil {
             fmt.Println(err)
           }
-          year.MonthRecords[index].CurrStore.AvgVal = rate
-          fmt.Println("Got exchange rate: ", year.MonthRecords[index].CurrStore.AvgVal)
+          doc.MonthRecs[index].AvgExch.AvgVal = rate
+          fmt.Println("Got exchange rate: ", doc.MonthRecs[index].AvgExch.AvgVal)
         }
 
-        year.MonthRecords[index].DayRecords = append(year.MonthRecords[index].DayRecords, dayRecord)
-        year.MonthRecords[index].sortRecordsByDate()
+        doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)
+        doc.MonthRecs[index].sortRecordsByDate()
         break
       }
     }
 
-    year.calcAllStats()
+    doc.calcAllStats()
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
@@ -384,23 +365,23 @@ func (year *YearRec) addEntry() http.HandlerFunc {
 // *******************************
 // Change active month to selected month
 // *******************************
-func (year *YearRec) changeToSheet() http.HandlerFunc {
+func (doc *Document) changeToSheet() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
     r.ParseForm()
     selectedSheet := r.FormValue("changeSheet")
 
-    for index, month := range year.MonthRecords {
-      if selectedSheet != month.MonthName {
-        month.ActiveMonth = false
-        year.MonthRecords[index] = month
+    for index, month := range doc.MonthRecs {
+      if selectedSheet != month.GroupName {
+        month.ActiveGroup = false
+        doc.MonthRecs[index] = month
       } else {
-        month.ActiveMonth = true
-        year.MonthRecords[index] = month
+        month.ActiveGroup = true
+        doc.MonthRecs[index] = month
       }
     }
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
@@ -409,49 +390,34 @@ func (year *YearRec) changeToSheet() http.HandlerFunc {
 // Sort records by ascending date within a month
 // *******************************
 func (month *MonthRec) sortRecordsByDate() {
-  sort.SliceStable(month.DayRecords, func(i, j int) bool {
-    return month.DayRecords[i].Date.Before(month.DayRecords[j].Date)
+  sort.SliceStable(month.EntryRecords, func(i, j int) bool {
+    return month.EntryRecords[i].Date.Before(month.EntryRecords[j].Date)
   })
 }
 
 // *******************************
-// Sort months by ascending date within a year
+// Sort months by ascending date within a document
 // *******************************
-func (year *YearRec) sortMonthsByDate() {
-  sort.SliceStable(year.MonthRecords, func(i, j int) bool {
-    return year.MonthRecords[i].MonthNum < year.MonthRecords[j].MonthNum
+func (doc *Document) sortMonthsByDate() {
+  sort.SliceStable(doc.MonthRecs, func(i, j int) bool {
+    return doc.MonthRecs[i].StartDate.Before(doc.MonthRecs[j].StartDate)
   })
-}
-
-// *******************************
-// Write changes done to the excel file
-// *******************************
-func (year *YearRec) writeExcel() http.HandlerFunc {
-  return func(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Saving XLSX file...")
-    err := year.excelFile.Save()
-    if err != nil {
-        fmt.Println(err)
-    }
-
-    tpl.Execute(w, year)
-  }
 }
 
 
 // *******************************
 // Write changes into a JSON file
 // *******************************
-func (year *YearRec) writeJson(fileName string) http.HandlerFunc {
+func (doc *Document) writeJson(fileName string) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
-    b, err := json.MarshalIndent(year, "", " ")
+    b, err := json.MarshalIndent(doc, "", " ")
     if err != nil {
         fmt.Println(err)
         return
     }
     _ = ioutil.WriteFile(fileName, b, 0644)
 
-    tpl.Execute(w, year)
+    tpl.Execute(w, doc)
   }
 }
 
@@ -459,178 +425,51 @@ func (year *YearRec) writeJson(fileName string) http.HandlerFunc {
 // *******************************
 // Add sheet given a name
 // *******************************
-func (year *YearRec) addSheet() http.HandlerFunc {
+func (doc *Document) addSheet() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
     monthRec := newMonthRec()
-    monthRec.MonthName = strings.TrimSpace(r.FormValue("sheetName"))
+    // Mark new month as active
+    for index, _ := range doc.MonthRecs {
+      doc.MonthRecs[index].ActiveGroup = false
+    }
+    monthRec.ActiveGroup = true
+    monthRec.GroupName = strings.TrimSpace(r.FormValue("sheetName"))
 
-    if monthRec.MonthName == "" {
-      monthRec.MonthName = r.FormValue("monthYearSheet")
+    if monthRec.GroupName == "" {
+      monthRec.GroupName = r.FormValue("monthYearSheet")
     }
 
     monthYearSlice := strings.Split(r.FormValue("monthYearSheet"), "-")
 
-    monthNum, err := strconv.Atoi(monthYearSlice[0])
+    sheetYear, err := strconv.Atoi(monthYearSlice[0])
     if err != nil {
       fmt.Println(err)
       return
     }
-    monthRec.MonthNum = monthNum
 
-    sheetYear, err := strconv.Atoi(monthYearSlice[1])
+    monthNum, err := strconv.Atoi(monthYearSlice[1])
     if err != nil {
       fmt.Println(err)
       return
     }
-    year.YearNum = sheetYear
 
-    monthRec.MonthNum, err = strconv.Atoi(monthYearSlice[0])
-    year.YearNum, err = strconv.Atoi(monthYearSlice[1])
+    firstDayMonth := time.Date(sheetYear, time.Month(monthNum), 1, 0, 0, 0, 0, time.Now().Location())
+    monthRec.StartDate = firstDayMonth
 
-    year.MonthRecords = append(year.MonthRecords, *monthRec)
+    doc.MonthRecs = append(doc.MonthRecs, *monthRec)
 
-    tpl.Execute(w, year)
+    doc.sortMonthsByDate()
+
+    tpl.Execute(w, doc)
   }
-}
-
-
-func (year *YearRec) readExcelFile(path string) error {
-  file, err := excelize.OpenFile(path)
-  if err != nil {
-    fmt.Println(err)
-    return errors.New("Could not open file "+path)
-  }
-  year.excelFile = file
-
-  // Get ordered set of sheet indexes
-  var sheetIndexes []int
-  for index, _ := range year.excelFile.GetSheetMap() {
-    sheetIndexes = append(sheetIndexes, index)
-  }
-  sort.Ints(sheetIndexes)
-
-  activeMonth := year.excelFile.GetActiveSheetIndex()
-
-  // Fill structs with info from excel sheets, sorted
-  for index := range sheetIndexes {
-    name := year.excelFile.GetSheetName(index)
-
-    // Fill a new month Record
-    monthRec := MonthRec{
-      ActiveMonth: false,
-    }
-    monthRec.MonthName = name
-
-    // Set active month
-    if activeMonth == index {
-      monthRec.ActiveMonth = true
-    }
-
-    rows, err := year.excelFile.GetRows(name)
-    if err != nil {
-      fmt.Println(err)
-      return errors.New("Error reading rows for sheet "+name)
-    }
-
-    dayRecords := monthRec.DayRecords
-
-    // Loop over all records for this month
-    for index, row := range rows {
-      // Skip first row
-      // TODO check if header is correct for robustness
-      if index == 0 {
-        continue
-      }
-      // Only process if there is something in the row
-      if len(row) == 0 {
-        continue
-      }
-
-      // Skip row if there is no entry
-      if row[0] == "" {
-        continue
-      }
-
-      // Parse Date
-      const layout = "02/01/06"
-      entryDate, err := time.Parse(layout, strings.TrimSpace(row[0]))
-      if err != nil {
-        fmt.Println(row[0])
-        fmt.Println(err)
-        entryDate = time.Time{}
-      }
-
-      if row[2] != "" {
-        dayRecord := DayRec {
-          Date: entryDate,
-          Category: row[1],
-          Who: "A",
-          Currency: "EUR",
-          Quantity: row[2],
-          Comment: row[7],
-        }
-        dayRecords = append(dayRecords, dayRecord);
-      } else if row[3] != "" {
-        dayRecord := DayRec {
-          Date: entryDate,
-          Category: row[1],
-          Who: "A",
-          Currency: "CHF",
-          Quantity: row[3],
-          Comment: row[7],
-        }
-        dayRecords = append(dayRecords, dayRecord);
-      } else if row[4] != "" {
-        dayRecord := DayRec {
-          Date: entryDate,
-          Category: row[1],
-          Who: "P",
-          Currency: "EUR",
-          Quantity: row[4],
-          Comment: row[7],
-        }
-        dayRecords = append(dayRecords, dayRecord);
-      } else if row[5] != "" {
-        dayRecord := DayRec {
-          Date: entryDate,
-          Category: row[1],
-          Who: "P",
-          Currency: "CHF",
-          Quantity: row[5],
-          Comment: row[7],
-        }
-        dayRecords = append(dayRecords, dayRecord);
-      } else if row[6] != "" {
-        dayRecord := DayRec {
-          Date: entryDate,
-          Category: row[1],
-          Who: "B",
-          Currency: "EUR",
-          Quantity: row[6],
-          Comment: row[7],
-        }
-        dayRecords = append(dayRecords, dayRecord);
-      }
-    }
-
-    monthRec.DayRecords = dayRecords
-
-    year.MonthRecords = append(year.MonthRecords, monthRec)
-
-    fmt.Print(".")
-  }
-
-  fmt.Println(" File read!")
-
-  return nil
 }
 
 
 func main() {
   port := "3000"
 
-  yearRecord := newYearRec()
+  document := newDocument()
 
   // Check input file type
   if inputFileRead == false && len(os.Args) == 2 {
@@ -644,20 +483,10 @@ func main() {
       }
       defer jsonFile.Close()
       byteValue, _ := ioutil.ReadAll(jsonFile)
-      json.Unmarshal(byteValue, &yearRecord)
+      json.Unmarshal(byteValue, &document)
 
-    } else if extensionType == ".xlsx" {
-      fmt.Println("Reading input file: ", filePath)
-      err := yearRecord.readExcelFile(filePath)
-      if err != nil {
-        fmt.Println(err)
-      }
-      for _, month := range yearRecord.MonthRecords {
-        month.sortRecordsByDate()
-      }
-      inputFileRead = true
-
-      yearRecord.writeJson("test.json")
+    } else {
+      fmt.Println("Input file type not recognized")
     }
   } else if len(os.Args) == 1 {
     fmt.Println("No input file: creating empty record")
@@ -672,19 +501,18 @@ func main() {
 
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
-  mux.HandleFunc("/writeExcel", yearRecord.writeExcel())
-  mux.HandleFunc("/writeJSON", yearRecord.writeJson("test_1.json"))
+  mux.HandleFunc("/writeJSON", document.writeJson("test_2.json"))
 
-  mux.HandleFunc("/addCategory", yearRecord.addCategory())
-  mux.HandleFunc("/addWho", yearRecord.addPayer())
-  mux.HandleFunc("/addCurrency", yearRecord.addCurrency())
-  mux.HandleFunc("/inputPreviousDebts", yearRecord.addPreviousDebts())
+  mux.HandleFunc("/addCategory", document.addCategory())
+  mux.HandleFunc("/addWho", document.addPayer())
+  mux.HandleFunc("/addCurrency", document.addCurrency())
+  mux.HandleFunc("/inputPreviousDebts", document.addPreviousDebts())
 
-  mux.HandleFunc("/changeSheet", yearRecord.changeToSheet())
+  mux.HandleFunc("/changeSheet", document.changeToSheet())
 
-  mux.HandleFunc("/addSheet", yearRecord.addSheet())
-  mux.HandleFunc("/addEntry", yearRecord.addEntry())
-  mux.HandleFunc("/", yearRecord.indexHandler())
+  mux.HandleFunc("/addSheet", document.addSheet())
+  mux.HandleFunc("/addEntry", document.addEntry())
+  mux.HandleFunc("/", document.indexHandler())
 
   http.ListenAndServe(":"+port, mux)
 
