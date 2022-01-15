@@ -428,18 +428,35 @@ func (doc *Document) writeJson(fileName string) http.HandlerFunc {
 func (doc *Document) addSheet() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
 
+    defer tpl.Execute(w, doc)
+
     monthRec := newMonthRec()
-    // Mark new month as active
-    for index, _ := range doc.MonthRecs {
-      doc.MonthRecs[index].ActiveGroup = false
-    }
-    monthRec.ActiveGroup = true
-    monthRec.GroupName = strings.TrimSpace(r.FormValue("sheetName"))
 
+    inputName := strings.TrimSpace(r.FormValue("sheetName"))
+
+    // Check if name was already used
+    for _, month := range doc.MonthRecs {
+      if inputName == month.GroupName {
+        fmt.Printf("Name %s was already used.", inputName)
+        return
+      }
+    }
+    monthRec.GroupName = inputName
+
+    // If no input is provided, use date
     if monthRec.GroupName == "" {
-      monthRec.GroupName = r.FormValue("monthYearSheet")
+      selectedMonthYear := r.FormValue("monthYearSheet")
+      // Check if name was already used
+      for _, month := range doc.MonthRecs {
+        if selectedMonthYear == month.GroupName {
+          fmt.Sprintf("Name %s was already used.", inputName)
+          return
+        }
+      }
+      monthRec.GroupName = selectedMonthYear
     }
 
+    // Create starting date for new month
     monthYearSlice := strings.Split(r.FormValue("monthYearSheet"), "-")
 
     sheetYear, err := strconv.Atoi(monthYearSlice[0])
@@ -457,11 +474,12 @@ func (doc *Document) addSheet() http.HandlerFunc {
     firstDayMonth := time.Date(sheetYear, time.Month(monthNum), 1, 0, 0, 0, 0, time.Now().Location())
     monthRec.StartDate = firstDayMonth
 
+    // Mark new month as active
+    monthRec.ActiveGroup = true
+
+    // Add it do the document and sort months
     doc.MonthRecs = append(doc.MonthRecs, *monthRec)
-
     doc.sortMonthsByDate()
-
-    tpl.Execute(w, doc)
   }
 }
 
