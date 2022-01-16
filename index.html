@@ -121,13 +121,13 @@ Previous year data (EUR):
     {{ if .ActiveGroup }}
       Month name: {{.GroupName}}<br>
       {{ range $index, $value := .AvgExchRates }}
-      Average Exchange Rate for {{ $value.CurrFrom }}->{{ $value.CurrTo }}: {{ $value.AvgVal }}<br>
+      Average Exchange Rate for {{ $value.CurrFrom }}->{{ $value.CurrTo }}: {{ printf "%.3f" $value.AvgVal }}<br>
       {{ end }}
       {{ range $key, $value := .Stats.AllPayersStats }}
         {{ $key }}<br>
-        Spent: {{ $value.Spent }}<br>
-        Accum: {{ $value.Accum }}<br>
-        Debt: {{ $value.Debt }}<br>
+        Spent: {{ printf "%.2f" $value.Spent }}<br>
+        Accum: {{ printf "%.2f" $value.Accum }}<br>
+        Debt: {{ printf "%.2f" $value.Debt }}<br>
       {{ end }}
       <div class="wrapper">
         {{ range .EntryRecords }}
