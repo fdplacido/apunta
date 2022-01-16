@@ -95,9 +95,11 @@ func (month *MonthRec) getAvgExchRates() []ExRateEntry {
 
   avg_entries := make([]ExRateEntry, 0)
   for key, value := range ocurrences {
-    avg_val := accumulated[key]/float64(value)
-    rate_entry := ExRateEntry{key, "EUR", avg_val}
-    avg_entries = append(avg_entries, rate_entry)
+    if key != "EUR" {
+      avg_val := accumulated[key]/float64(value)
+      rate_entry := ExRateEntry{key, "EUR", avg_val}
+      avg_entries = append(avg_entries, rate_entry)
+    }
   }
 
   return avg_entries
@@ -380,7 +382,6 @@ func (doc *Document) addEntry() http.HandlerFunc {
           for _, entryExch := range month.EntryRecords {
             if  entryExch.Date.Day() == entry.Date.Day() {
               if entryExch.ExchRate != 0.0 {
-                fmt.Println("Entry exchRate was found in another entry")
                 entry.ExchRate = entryExch.ExchRate
                 break
               }
@@ -389,7 +390,6 @@ func (doc *Document) addEntry() http.HandlerFunc {
 
           // Get new exchange rate from API
           if entry.ExchRate == 0.0 {
-            fmt.Println("Getting new exchange rate...")
             rate, err := exchRates.GetRate(entry.Currency, "EUR", entry.Date)
             if err != nil {
               fmt.Println(err)
@@ -402,12 +402,13 @@ func (doc *Document) addEntry() http.HandlerFunc {
           entry.ExchRate = 1.0
         }
 
+        // Add entry to the list and sort
         doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)
         doc.MonthRecs[index].sortRecordsByDate()
 
-        // Recalculate average exchange rates with new entry
+        // Recalculate month average exchange rates with new entry
         if entry.Currency != "EUR" {
-          doc.MonthRecs[index].AvgExchRates = month.getAvgExchRates()
+          doc.MonthRecs[index].AvgExchRates = doc.MonthRecs[index].getAvgExchRates()
         }
 
         break
