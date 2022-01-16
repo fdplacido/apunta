@@ -21,6 +21,7 @@ type EntryRec struct {
   Category   string
   PersonName string
   Currency   string
+  ExchRate   float64
   Amount     float64
   Comment    string
 }
@@ -236,6 +237,8 @@ func (doc *Document) addPayer() http.HandlerFunc {
 func (doc *Document) addCurrency() http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     newCurrency := strings.TrimSpace(r.FormValue("newCurrency"))
+
+    // TODO check that length is 3 and capital letters
     doc.Currencies = append(doc.Currencies, newCurrency)
 
     tpl.Execute(w, doc)
@@ -247,6 +250,7 @@ func (doc *Document) addCurrency() http.HandlerFunc {
 // Calculate all months statistics
 // *******************************
 func (doc *Document) calcAllStats() {
+  fmt.Println("recalculating all months")
   // Recalculate month statistics
   // Months sorted by date is assumed
   for index, month := range doc.MonthRecs {
@@ -337,16 +341,33 @@ func (doc *Document) addEntry() http.HandlerFunc {
     for index, month := range doc.MonthRecs {
       if isSameMonthYear(recDate, month.StartDate) {
 
-        fmt.Println("Average exch rate for this month: ", doc.MonthRecs[index].AvgExch.AvgVal)
-        // Check if there is an exchange rate for this month
-        if doc.MonthRecs[index].AvgExch.AvgVal == 0.0 {
-          // Get exchange rate from openexchangerates
-          rate, err := exchRages.GetRate("CHF", "EUR")
-          if err != nil {
-            fmt.Println(err)
+        // Check if currency is different from base one (EUR)
+        if entry.Currency != "EUR" {
+          fmt.Println("entry not EUR")
+          // Check if an entry with same date has an exchange rate already
+          for _, entryExch := range month.EntryRecords {
+            if  entryExch.Date.Day() == entry.Date.Day() {
+              if entryExch.ExchRate != 0.0 {
+                fmt.Println("Entry exchRate was found in another entry")
+                entry.ExchRate = entryExch.ExchRate
+                break
+              }
+            }
           }
-          doc.MonthRecs[index].AvgExch.AvgVal = rate
-          fmt.Println("Got exchange rate: ", doc.MonthRecs[index].AvgExch.AvgVal)
+
+          // Get new exchange rate from API
+          if entry.ExchRate == 0.0 {
+            fmt.Println("Getting new exchange rate...")
+            rate, err := exchRates.GetRate(entry.Currency, "EUR", entry.Date)
+            if err != nil {
+              fmt.Println(err)
+            }
+            entry.ExchRate = rate
+            fmt.Println("Got exchange rate: ", entry.ExchRate)
+          }
+
+        } else {
+          entry.ExchRate = 1.0
         }
 
         doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)

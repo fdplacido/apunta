@@ -1,4 +1,4 @@
-package exchRages
+package exchRates
 
 import (
   "fmt"
@@ -6,6 +6,7 @@ import (
   "encoding/json"
   "io/ioutil"
   "os"
+  "time"
   "errors"
 )
 
@@ -20,14 +21,21 @@ type exchangeData struct {
 	} `json:"rates"`
 }
 
-func GetRate(from, to string) (float64, error) {
+func GetRate(from, to string, date time.Time) (float64, error) {
+
+	if from != "CHF" {
+		return 1.0, errors.New("Unsupported exchange rate. defaulting to 1.0 exchange rate")
+	}
+
 	oeid := os.Getenv("OPEN_EXCHANGE_APP_ID")
 	if oeid == "" {
 		return 1.0, errors.New("No OPEN_EXCHANGE_APP_ID env variable found, defaulting to 1.0 exchange rate")
 	}
 	symbols := fmt.Sprintf("%s,%s", from, to)
-	urlRequest := fmt.Sprintf("https://openexchangerates.org/api/latest.json?app_id=%s&symbols=%s",
-		oeid, symbols)
+	const url_date_layout string = "2006-01-02"
+	url_date := date.Format(url_date_layout)
+	urlRequest := fmt.Sprintf("https://openexchangerates.org/api/historical/%s.json?app_id=%s&symbols=%s",
+		url_date, oeid, symbols)
 	resp, err := http.Get(urlRequest)
 	if err != nil {
 	   fmt.Println(err)
