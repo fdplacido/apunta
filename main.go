@@ -412,6 +412,11 @@ func (doc *Document) addEntry() http.HandlerFunc {
 
         break
       }
+
+      // Check for last item
+      if index + 1 == len(doc.MonthRecs) {
+        fmt.Printf("Date %s did not fit in any current month", recDate)
+      }
     }
 
     doc.calcAllStats()
