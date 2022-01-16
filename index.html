@@ -76,14 +76,14 @@
 
 <p class="bottom-one"><hr/></p>
 
-Input previous debt data:
+Input previous debt data (EUR assumed):
 <form action="/inputPreviousDebts" method="post">
   Previous debtor name: <input type="text" class="input-field" name="prevDebtName"><br />
   Previous debt amount: <input type="text" class="input-field" name="prevDebtAmount"><br />
   <input type="submit" value="Submit previous debt data">
 </form>
 
-Previous year data:
+Previous year data (EUR):
 {{ range $name, $value := .PrevDebt }}
 {{ $name }}: {{ $value }}<br />
 {{ end }}
@@ -120,6 +120,9 @@ Previous year data:
   {{ range .MonthRecs }}
     {{ if .ActiveGroup }}
       Month name: {{.GroupName}}<br>
+      {{ range $index, $value := .AvgExchRates }}
+      Average Exchange Rate for {{ $value.CurrFrom }}->{{ $value.CurrTo }}: {{ $value.AvgVal }}<br>
+      {{ end }}
       {{ range $key, $value := .Stats.AllPayersStats }}
         {{ $key }}<br>
         Spent: {{ $value.Spent }}<br>

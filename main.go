@@ -43,12 +43,12 @@ type MonthStats struct {
 }
 
 type MonthRec struct {
-  StartDate    time.Time
-  GroupName    string
-  ActiveGroup  bool
-  AvgExch      ExRateEntry
-  Stats        MonthStats
-  EntryRecords []EntryRec
+  StartDate     time.Time
+  GroupName     string
+  ActiveGroup   bool
+  AvgExchRates  []ExRateEntry
+  Stats         MonthStats
+  EntryRecords  []EntryRec
 }
 
 type Document struct {
@@ -79,6 +79,31 @@ func (doc *Document) indexHandler() http.HandlerFunc {
     tpl.Execute(w, doc)
   }
 }
+
+
+// *******************************
+// Calculate average exchange rate for this month
+// *******************************
+func (month *MonthRec) getAvgExchRates() []ExRateEntry {
+
+  ocurrences := map[string]int{}
+  accumulated := map[string]float64{}
+  for _, entryRec := range month.EntryRecords {
+    ocurrences[entryRec.Currency] += 1
+    accumulated[entryRec.Currency] += entryRec.ExchRate
+  }
+
+  avg_entries := make([]ExRateEntry, 0)
+  for key, value := range ocurrences {
+    avg_val := accumulated[key]/float64(value)
+    rate_entry := ExRateEntry{key, "EUR", avg_val}
+    avg_entries = append(avg_entries, rate_entry)
+  }
+
+  return avg_entries
+}
+
+
 
 // *******************************
 // Calculate statistics for this month
@@ -112,20 +137,29 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
   // Calculate spent
   allSpent := make([]float64, 0)
   for _, dayRec := range month.EntryRecords {
+
+    // Set value for exchange rate
+    rate_val := 1.0
+    for _, month_rate := range month.AvgExchRates {
+      if month_rate.CurrFrom == dayRec.Currency {
+        rate_val = month_rate.AvgVal
+      }
+    }
+
     // Store special case for all to process at the end
     // Skip special case statistics
     if dayRec.PersonName == "B" || dayRec.PersonName == "All" {
-      allSpent = append(allSpent, dayRec.Amount)
+      allSpent = append(allSpent, dayRec.Amount * rate_val)
       continue
     }
 
     if stats, ok := month.Stats.AllPayersStats[dayRec.PersonName]; ok {
       // Key already thare, add
-      stats.Spent += dayRec.Amount
+      stats.Spent += (dayRec.Amount * rate_val)
       month.Stats.AllPayersStats[dayRec.PersonName] = stats
     } else {
       // no key, just create the value
-      stats = PayerStats{dayRec.Amount, 0.0, 0.0}
+      stats = PayerStats{(dayRec.Amount * rate_val), 0.0, 0.0}
       month.Stats.AllPayersStats[dayRec.PersonName] = stats
     }
   }
@@ -187,8 +221,9 @@ func newMonthRec() *MonthRec {
 // *******************************
 func newDocument() *Document {
   doc := &Document{}
-  // Always have the "All" payers
+  // Default values for Document
   doc.Payers = append(doc.Payers, "All")
+  doc.Currencies = append(doc.Currencies, "EUR")
   return doc
 }
 
@@ -250,17 +285,14 @@ func (doc *Document) addCurrency() http.HandlerFunc {
 // Calculate all months statistics
 // *******************************
 func (doc *Document) calcAllStats() {
-  fmt.Println("recalculating all months")
   // Recalculate month statistics
   // Months sorted by date is assumed
   for index, month := range doc.MonthRecs {
     // TODO Introduce checks to not calculate this every time
     // TODO calculate only from current month, without the previous ones
     if index == 0 {
-      fmt.Println("calculating first month")
       doc.MonthRecs[index].Stats = month.calcStats(nil, doc.PrevDebt)
     } else {
-      fmt.Println("calculating other month")
       // TODO probably doesn't need a pointer to all the data
       doc.MonthRecs[index].Stats = month.calcStats(&(doc.MonthRecs[index - 1]), doc.PrevDebt)
     }
@@ -372,6 +404,12 @@ func (doc *Document) addEntry() http.HandlerFunc {
 
         doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)
         doc.MonthRecs[index].sortRecordsByDate()
+
+        // Recalculate average exchange rates with new entry
+        if entry.Currency != "EUR" {
+          doc.MonthRecs[index].AvgExchRates = month.getAvgExchRates()
+        }
+
         break
       }
     }
