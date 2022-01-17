@@ -59,28 +59,34 @@
 
 <p class="bottom-one"><hr/></p>
 
-<form action="/addCategory" method="post">
-  <input type="text" class="input-field" name="newCategory"><br />
-  <input type="submit" value="Add new category label">
+Add to dropdowns:
+<form class="form-inline" action="/addCategory" method="post">
+  <label>Add category label:</label>
+  <input type="text" placeholder="Category label" name="newCategory">
+  <button type="submit">Add category</button>
 </form>
 
-<form action="/addWho" method="post">
-  <input type="text" class="input-field" name="newPayer"><br />
-  <input type="submit" value="Add new person label">
+<form class="form-inline" action="/addWho" method="post">
+  <label>Add participant name:</label>
+  <input type="text" placeholder="Name" name="newPayer">
+  <button type="submit">Add participant</button>
 </form>
 
-<form action="/addCurrency" method="post">
-  <input type="text" class="input-field" name="newCurrency"><br />
-  <input type="submit" value="Add new currency">
+<form class="form-inline" action="/addCurrency" method="post">
+  <label>Add currency:</label>
+  <input type="text" placeholder="EUR" name="newCurrency">
+  <button type="submit">Add currency</button>
 </form>
 
 <p class="bottom-one"><hr/></p>
 
 Input previous debt data (EUR assumed):
-<form action="/inputPreviousDebts" method="post">
-  Previous debtor name: <input type="text" class="input-field" name="prevDebtName"><br />
-  Previous debt amount: <input type="text" class="input-field" name="prevDebtAmount"><br />
-  <input type="submit" value="Submit previous debt data">
+<form class="form-inline" action="/inputPreviousDebts" method="post">
+  <label>Previous debtor name:</label>
+  <input type="text" placeholder="Name" name="prevDebtName">
+  <label>Previous debt amount:</label>
+  <input type="text" placeholder="12.34" name="prevDebtAmount">
+  <button type="submit">Submit</button>
 </form>
 
 Previous year data (EUR):
@@ -90,16 +96,19 @@ Previous year data (EUR):
 
 <p class="bottom-one"><hr/></p>
 
-<form action="/writeJSON" method="post">
-  <input type="submit" value="Write to JSON file">
+<form class="form-inline" action="/writeJSON" method="post">
+  <label>Write JSON to file:</label>
+  <button type="submit">Save</button>
 </form>
 
 <p class="bottom-one"><hr/></p>
 
-<form action="/addSheet" method="post">
-  Sheet name: <input type="text" class="input-field" name="sheetName"><br />
-  Input month-year: <input type="month" id="monthYearSheet" name="monthYearSheet" min="2022-01" value="2022-01">
-  <input type="submit" value="Add a new sheet to the year record">
+<form class="form-inline" action="/addSheet" method="post">
+  <label>Month name:</label>
+  <input type="text" placeholder="aug2023" name="sheetName">
+  <label>Input month-year:</label>
+  <input type="month" placeholder="" name="monthYearSheet" value="2022-01">
+  <button type="submit">Add month sheet</button>
 </form>
 
 <p class="bottom-one"><hr/></p>
