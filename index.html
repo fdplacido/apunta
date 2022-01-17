@@ -59,6 +59,24 @@
 
 <p class="bottom-one"><hr/></p>
 
+
+<div class="tabset">
+  <!-- Tab 1 -->
+  <input type="radio" name="tabset" id="tab1" aria-controls="dropdown-tab" checked>
+  <label for="tab1">Dropdowns</label>
+  <!-- Tab 2 -->
+  <input type="radio" name="tabset" id="tab2" aria-controls="previous-data-tab">
+  <label for="tab2">Previous data</label>
+  <!-- Tab 3 -->
+  <input type="radio" name="tabset" id="tab3" aria-controls="write-json-tab">
+  <label for="tab3">Write JSON</label>
+  <!-- Tab 4 -->
+  <input type="radio" name="tabset" id="tab4" aria-controls="add-sheet-tab">
+  <label for="tab4">Add sheet</label>
+
+  <div class="tab-panels">
+    <section id="dropdown-tab" class="tab-panel">
+
 Add to dropdowns:
 <form class="form-inline" action="/addCategory" method="post">
   <label>Add category label:</label>
@@ -78,7 +96,8 @@ Add to dropdowns:
   <button type="submit">Add currency</button>
 </form>
 
-<p class="bottom-one"><hr/></p>
+    </section>
+    <section id="previous-data-tab" class="tab-panel">
 
 Input previous debt data (EUR assumed):
 <form class="form-inline" action="/inputPreviousDebts" method="post">
@@ -94,14 +113,18 @@ Previous year data (EUR):
 {{ $name }}: {{ $value }}<br />
 {{ end }}
 
-<p class="bottom-one"><hr/></p>
+    </section>
+    <section id="write-json-tab" class="tab-panel">
 
 <form class="form-inline" action="/writeJSON" method="post">
   <label>Write JSON to file:</label>
   <button type="submit">Save</button>
 </form>
 
-<p class="bottom-one"><hr/></p>
+    </section>
+
+    </section>
+    <section id="add-sheet-tab" class="tab-panel">
 
 <form class="form-inline" action="/addSheet" method="post">
   <label>Month name:</label>
@@ -110,6 +133,11 @@ Previous year data (EUR):
   <input type="month" placeholder="" name="monthYearSheet" value="2022-01">
   <button type="submit">Add month sheet</button>
 </form>
+
+    </section>
+  </div>
+
+</div>
 
 <p class="bottom-one"><hr/></p>
 
