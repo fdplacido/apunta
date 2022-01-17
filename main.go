@@ -436,15 +436,7 @@ func (doc *Document) changeToSheet() http.HandlerFunc {
     r.ParseForm()
     selectedSheet := r.FormValue("changeSheet")
 
-    for index, month := range doc.MonthRecs {
-      if selectedSheet != month.GroupName {
-        month.ActiveGroup = false
-        doc.MonthRecs[index] = month
-      } else {
-        month.ActiveGroup = true
-        doc.MonthRecs[index] = month
-      }
-    }
+    doc.markMonthAsActive(selectedSheet)
 
     tpl.Execute(w, doc)
   }
@@ -483,6 +475,22 @@ func (doc *Document) writeJson(fileName string) http.HandlerFunc {
     _ = ioutil.WriteFile(fileName, b, 0644)
 
     tpl.Execute(w, doc)
+  }
+}
+
+
+// *******************************
+// Add sheet given a name
+// *******************************
+func (doc *Document) markMonthAsActive(name string) {
+  for index, month := range doc.MonthRecs {
+    if name != month.GroupName {
+      month.ActiveGroup = false
+      doc.MonthRecs[index] = month
+    } else {
+      month.ActiveGroup = true
+      doc.MonthRecs[index] = month
+    }
   }
 }
 
@@ -540,7 +548,7 @@ func (doc *Document) addSheet() http.HandlerFunc {
     monthRec.StartDate = firstDayMonth
 
     // Mark new month as active
-    monthRec.ActiveGroup = true
+    doc.markMonthAsActive(monthRec.GroupName)
 
     // Add it do the document and sort months
     doc.MonthRecs = append(doc.MonthRecs, *monthRec)
