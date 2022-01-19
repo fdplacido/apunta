@@ -28,4 +28,10 @@ go test
 # Run coverage
 go test -coverprofile=coverage.out
 go tool cover -html=coverage.out
+
+# Benchmarking all benchmarks
+go test -bench=.
+
+# Run examples
+go test -v
 ```
