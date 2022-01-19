@@ -17,3 +17,15 @@ export OPEN_EXCHANGE_APP_ID=<appid>
 # Old xlsx compatibility
 ./apunta path/to/file.xlsx
 ```
+
+
+## Testing
+
+```sh
+# Run tests
+go test
+
+# Run coverage
+go test -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
