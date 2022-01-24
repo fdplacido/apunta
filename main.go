@@ -98,7 +98,7 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
 
         // check if date was already seen
         if _, date_ok := dates_map[entryRec.Date]; date_ok {
-          break
+          continue
         } else {
           // Get exchage rate
           if entryRec.ExchRate == 0.0 {
@@ -120,7 +120,7 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
         }
 
       } else {
-
+        // Add new currency with the date and rate
         dates_map := map[time.Time]float64{}
         // Create new entry, get exchage rate
         if entryRec.ExchRate == 0.0 {
