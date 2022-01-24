@@ -591,6 +591,7 @@ func (doc *Document) writeJson(fileName string) http.HandlerFunc {
         fmt.Println(err)
         return
     }
+    fmt.Println("Saving current data in file named ", fileName)
     _ = ioutil.WriteFile(fileName, b, 0644)
 
     tpl.Execute(w, doc)
@@ -711,7 +712,14 @@ func main() {
 
   mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
-  mux.HandleFunc("/writeJSON", document.writeJson("test_2.json"))
+  if len(os.Args) == 2 {
+    mux.HandleFunc("/writeJSON", document.writeJson(os.Args[1]))
+  } else {
+    currentTime := time.Now()
+    fileName := "apunta" + currentTime.Format("2006-01-02_150405.json")
+    mux.HandleFunc("/writeJSON", document.writeJson(fileName))
+  }
+
 
   mux.HandleFunc("/addCategory", document.addCategory())
   mux.HandleFunc("/addWho", document.addPayer())
