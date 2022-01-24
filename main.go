@@ -161,7 +161,7 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
 
   // set the caulcated exchange rates to the month
   for curr, avg_val := range avg_curr {
-    new_rate := ExRateEntry{"EUR", curr, avg_val}
+    new_rate := ExRateEntry{curr, "EUR", avg_val}
     month.AvgExchRates = append(month.AvgExchRates, new_rate)
   }
 
