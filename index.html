@@ -21,7 +21,11 @@
     <div class="box">Comment</div>
 
     <div class="box">
-      <input type="date" class="input-field" id="entrydate" name="date">
+      {{ range .MonthRecs }}
+        {{ if .ActiveGroup }}
+      <input type="date" class="input-field" id="entrydate" name="date" value={{.StartDate.Format "2006-01-02"}}>
+        {{ end }}
+      {{ end }}
     </div>
     <div class="box">
       <select id="category" name="category">
