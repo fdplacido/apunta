@@ -82,6 +82,117 @@ func (doc *Document) indexHandler() http.HandlerFunc {
 
 
 // *******************************
+// Get and calculate all exchange rates for this month
+// *******************************
+func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
+
+  // Map of currencies to map of dates - exchRates
+  checked_entries := map[string]map[time.Time]float64{}
+
+  for index, entryRec := range month.EntryRecords {
+
+    if entryRec.Currency != "EUR" {
+
+      // Check if currency was already seen
+      if dates_map, curr_ok := checked_entries[entryRec.Currency]; curr_ok {
+
+        // check if date was already seen
+        if _, date_ok := dates_map[entryRec.Date]; date_ok {
+          break
+        } else {
+          // Get exchage rate
+          if entryRec.ExchRate == 0.0 {
+            rate, err := exchRates.GetRate(entryRec.Currency, "EUR", entryRec.Date)
+            if err != nil {
+              fmt.Println(err)
+            }
+            // Set rate for future use in entry
+            entryRec.ExchRate = rate
+            month.EntryRecords[index] = entryRec
+
+            // Save to checked entries
+            dates_map[entryRec.Date] = entryRec.ExchRate
+            checked_entries[entryRec.Currency] = dates_map
+          } else {
+            dates_map[entryRec.Date] = entryRec.ExchRate
+            checked_entries[entryRec.Currency] = dates_map
+          }
+        }
+
+      } else {
+
+        dates_map := map[time.Time]float64{}
+        // Create new entry, get exchage rate
+        if entryRec.ExchRate == 0.0 {
+          rate, err := exchRates.GetRate(entryRec.Currency, "EUR", entryRec.Date)
+          if err != nil {
+            fmt.Println(err)
+          }
+          // Set rate for future use in entry
+          entryRec.ExchRate = rate
+          month.EntryRecords[index] = entryRec
+
+          // Save to checked entries
+          dates_map[entryRec.Date] = entryRec.ExchRate
+          checked_entries[entryRec.Currency] = dates_map
+        } else {
+          dates_map[entryRec.Date] = entryRec.ExchRate
+          checked_entries[entryRec.Currency] = dates_map
+        }
+      }
+
+    }
+  }
+
+  // Calculate average per currency
+  avg_curr := map[string]float64{}
+  for curr, dates_map := range checked_entries {
+    num_elems := len(dates_map)
+    for _, exch := range dates_map {
+      avg_curr[curr] += exch
+    }
+    avg_curr[curr] = avg_curr[curr]/float64(num_elems)
+  }
+
+
+  // set the caulcated exchange rates to the month
+  for curr, avg_val := range avg_curr {
+    new_rate := ExRateEntry{"EUR", curr, avg_val}
+    month.AvgExchRates = append(month.AvgExchRates, new_rate)
+  }
+
+  return month.AvgExchRates
+
+}
+
+
+
+// *******************************
+// Get the active month and calculate its exchange rate
+// *******************************
+func (doc *Document) calcExchRate() http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+
+    for index, month := range doc.MonthRecs {
+      if month.ActiveGroup {
+        doc.MonthRecs[index].AvgExchRates = month.ExchRatesCalcs()
+        break
+      }
+    }
+
+    doc.calcAllStats()
+
+    tpl.Execute(w, doc)
+
+  }
+}
+
+
+
+
+
+
+// *******************************
 // Calculate average exchange rate for this month
 // *******************************
 func (month *MonthRec) getAvgExchRates() []ExRateEntry {
@@ -214,6 +325,8 @@ func newMonthRec() *MonthRec {
   monthRecord := &MonthRec{}
   monthRecord.ActiveGroup = false
   monthRecord.Stats.AllPayersStats = map[string]PayerStats{}
+  monthRecord.AvgExchRates = make([]ExRateEntry, 0)
+
   return monthRecord
 }
 
@@ -375,41 +488,47 @@ func (doc *Document) addEntry() http.HandlerFunc {
     for index, month := range doc.MonthRecs {
       if isSameMonthYear(recDate, month.StartDate) {
 
-        // Check if currency is different from base one (EUR)
-        if entry.Currency != "EUR" {
-          fmt.Println("entry not EUR")
-          // Check if an entry with same date has an exchange rate already
-          for _, entryExch := range month.EntryRecords {
-            if  entryExch.Date.Day() == entry.Date.Day() {
-              if entryExch.ExchRate != 0.0 {
-                entry.ExchRate = entryExch.ExchRate
-                break
-              }
-            }
-          }
-
-          // Get new exchange rate from API
-          if entry.ExchRate == 0.0 {
-            rate, err := exchRates.GetRate(entry.Currency, "EUR", entry.Date)
-            if err != nil {
-              fmt.Println(err)
-            }
-            entry.ExchRate = rate
-            fmt.Println("Got exchange rate: ", entry.ExchRate)
-          }
-
-        } else {
+        if entry.Currency == "EUR" {
           entry.ExchRate = 1.0
+        } else {
+          entry.ExchRate = 0.0
         }
+
+        // // Check if currency is different from base one (EUR)
+        // if entry.Currency != "EUR" {
+        //   fmt.Println("entry not EUR")
+        //   // Check if an entry with same date has an exchange rate already
+        //   for _, entryExch := range month.EntryRecords {
+        //     if  entryExch.Date.Day() == entry.Date.Day() {
+        //       if entryExch.ExchRate != 0.0 {
+        //         entry.ExchRate = entryExch.ExchRate
+        //         break
+        //       }
+        //     }
+        //   }
+
+        //   // Get new exchange rate from API
+        //   if entry.ExchRate == 0.0 {
+        //     rate, err := exchRates.GetRate(entry.Currency, "EUR", entry.Date)
+        //     if err != nil {
+        //       fmt.Println(err)
+        //     }
+        //     entry.ExchRate = rate
+        //     fmt.Println("Got exchange rate: ", entry.ExchRate)
+        //   }
+
+        // } else {
+        //   entry.ExchRate = 1.0
+        // }
 
         // Add entry to the list and sort
         doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)
         doc.MonthRecs[index].sortRecordsByDate()
 
-        // Recalculate month average exchange rates with new entry
-        if entry.Currency != "EUR" {
-          doc.MonthRecs[index].AvgExchRates = doc.MonthRecs[index].getAvgExchRates()
-        }
+        // // Recalculate month average exchange rates with new entry
+        // if entry.Currency != "EUR" {
+        //   doc.MonthRecs[index].AvgExchRates = doc.MonthRecs[index].getAvgExchRates()
+        // }
 
         break
       }
@@ -602,6 +721,8 @@ func main() {
   mux.HandleFunc("/changeSheet", document.changeToSheet())
 
   mux.HandleFunc("/addSheet", document.addSheet())
+  mux.HandleFunc("/calcExchRateMonth", document.calcExchRate())
+
   mux.HandleFunc("/addEntry", document.addEntry())
   mux.HandleFunc("/", document.indexHandler())
 

@@ -75,6 +75,7 @@
   <label for="tab4">Add sheet</label>
 
   <div class="tab-panels">
+
     <section id="dropdown-tab" class="tab-panel">
 
 Add to dropdowns:
@@ -97,6 +98,7 @@ Add to dropdowns:
 </form>
 
     </section>
+
     <section id="previous-data-tab" class="tab-panel">
 
 Input previous debt data (EUR assumed):
@@ -114,6 +116,7 @@ Previous year data (EUR):
 {{ end }}
 
     </section>
+
     <section id="write-json-tab" class="tab-panel">
 
 <form class="form-inline" action="/writeJSON" method="post">
@@ -123,7 +126,6 @@ Previous year data (EUR):
 
     </section>
 
-    </section>
     <section id="add-sheet-tab" class="tab-panel">
 
 <form class="form-inline" action="/addSheet" method="post">
@@ -132,6 +134,16 @@ Previous year data (EUR):
   <label>Input month-year:</label>
   <input type="month" placeholder="" name="monthYearSheet" value="2022-01">
   <button type="submit">Add month sheet</button>
+</form>
+
+<form class="form-inline" action="/calcExchRateMonth" method="post">
+  {{ range .MonthRecs }}
+    {{ if .ActiveGroup }}
+      <label>Calculate exchange rate for sheet: {{.GroupName }}
+    {{ end }}
+  {{ end }}
+
+  <button type="submit">Calculate Exchange Rate</button>
 </form>
 
     </section>
