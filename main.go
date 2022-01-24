@@ -52,11 +52,15 @@ type MonthRec struct {
 }
 
 type Document struct {
-  PrevDebt     map[string]float64
-  Categories   []string
-  Payers       []string
-  Currencies   []string
-  MonthRecs    []MonthRec
+  PrevDebt      map[string]float64
+  Categories    []string
+  Payers        []string
+  Currencies    []string
+  LastUsedCat   string
+  LastUsedPayer string
+  LastUsedCurr  string
+  LastUsedDate  time.Time
+  MonthRecs     []MonthRec
 }
 
 // Global stuff
@@ -339,6 +343,7 @@ func newDocument() *Document {
   // Default values for Document
   doc.Payers = append(doc.Payers, "All")
   doc.Currencies = append(doc.Currencies, "EUR")
+  doc.LastUsedDate = time.Now()
   return doc
 }
 
@@ -494,41 +499,9 @@ func (doc *Document) addEntry() http.HandlerFunc {
           entry.ExchRate = 0.0
         }
 
-        // // Check if currency is different from base one (EUR)
-        // if entry.Currency != "EUR" {
-        //   fmt.Println("entry not EUR")
-        //   // Check if an entry with same date has an exchange rate already
-        //   for _, entryExch := range month.EntryRecords {
-        //     if  entryExch.Date.Day() == entry.Date.Day() {
-        //       if entryExch.ExchRate != 0.0 {
-        //         entry.ExchRate = entryExch.ExchRate
-        //         break
-        //       }
-        //     }
-        //   }
-
-        //   // Get new exchange rate from API
-        //   if entry.ExchRate == 0.0 {
-        //     rate, err := exchRates.GetRate(entry.Currency, "EUR", entry.Date)
-        //     if err != nil {
-        //       fmt.Println(err)
-        //     }
-        //     entry.ExchRate = rate
-        //     fmt.Println("Got exchange rate: ", entry.ExchRate)
-        //   }
-
-        // } else {
-        //   entry.ExchRate = 1.0
-        // }
-
         // Add entry to the list and sort
         doc.MonthRecs[index].EntryRecords = append(doc.MonthRecs[index].EntryRecords, entry)
         doc.MonthRecs[index].sortRecordsByDate()
-
-        // // Recalculate month average exchange rates with new entry
-        // if entry.Currency != "EUR" {
-        //   doc.MonthRecs[index].AvgExchRates = doc.MonthRecs[index].getAvgExchRates()
-        // }
 
         break
       }
@@ -541,8 +514,21 @@ func (doc *Document) addEntry() http.HandlerFunc {
 
     doc.calcAllStats()
 
+    doc.updateLastUsed(entry.Category, entry.PersonName, entry.Currency, entry.Date)
+
     tpl.Execute(w, doc)
   }
+}
+
+
+// *******************************
+// Change active month to selected month
+// *******************************
+func (doc *Document) updateLastUsed(lastCat, lastPayer, lastCurr string, lastDate time.Time) {
+  doc.LastUsedCat = lastCat
+  doc.LastUsedPayer = lastPayer
+  doc.LastUsedCurr = lastCurr
+  doc.LastUsedDate = lastDate
 }
 
 

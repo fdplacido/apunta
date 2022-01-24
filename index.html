@@ -21,35 +21,40 @@
     <div class="box">Comment</div>
 
     <div class="box">
-      {{ range .MonthRecs }}
-        {{ if .ActiveGroup }}
-      <input type="date" class="input-field" id="entrydate" name="date" value={{.StartDate.Format "2006-01-02"}}>
-        {{ end }}
-      {{ end }}
+      <input type="date" class="input-field" id="entrydate" name="date" value={{.LastUsedDate.Format "2006-01-02"}}>
     </div>
     <div class="box">
       <select id="category" name="category">
         {{ range.Categories }}
+          {{ if eq . $.LastUsedCat }}
+        <option value="{{.}}" selected="selected">{{.}}</option>
+          {{ else }}
         <option value="{{.}}">{{.}}</option>
+          {{ end }}
         {{ end }}
       </select>
-      <!-- <input type="text" class="input-field" name="category"><br /> -->
     </div>
     <div class="box">
       <select id="who" name="who">
         {{ range.Payers }}
+          {{ if eq . $.LastUsedPayer }}
+        <option value="{{.}}" selected="selected">{{.}}</option>
+          {{ else }}
         <option value="{{.}}">{{.}}</option>
+          {{ end }}
         {{ end }}
       </select>
-      <!-- <input type="text" class="input-field" name="who"><br /> -->
     </div>
     <div class="box">
       <select id="currency" name="currency">
         {{ range.Currencies }}
+          {{ if eq . $.LastUsedCurr }}
+        <option value="{{.}}" selected="selected">{{.}}</option>
+          {{ else }}
         <option value="{{.}}">{{.}}</option>
+          {{ end }}
         {{ end }}
       </select>
-      <!-- <input type="text" class="input-field" name="currency"><br /> -->
     </div>
     <div class="box">
       <input type="text" class="input-field" name="quantity"><br />
