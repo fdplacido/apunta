@@ -12,6 +12,7 @@ import (
   "os"
   "encoding/json"
   "io/ioutil"
+  "sync"
 
   "apunta/exchRates"
 )
@@ -90,74 +91,57 @@ func (doc *Document) indexHandler() http.HandlerFunc {
 // *******************************
 func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
 
-  // Map of currencies to map of dates - exchRates
-  checked_entries := map[string]map[time.Time]float64{}
-
+  // Map of non-EUR currencies to map of dates - indexes in the entry records
+  checked_entries := map[string]map[time.Time]int{}
   for index, entryRec := range month.EntryRecords {
-
     if entryRec.Currency != "EUR" {
-
       // Check if currency was already seen
       if dates_map, curr_ok := checked_entries[entryRec.Currency]; curr_ok {
-
         // check if date was already seen
         if _, date_ok := dates_map[entryRec.Date]; date_ok {
           continue
         } else {
-          // Get exchage rate
-          if entryRec.ExchRate == 0.0 {
-            rate, err := exchRates.GetRate(entryRec.Currency, "EUR", entryRec.Date)
-            if err != nil {
-              fmt.Println(err)
-            }
-            // Set rate for future use in entry
-            entryRec.ExchRate = rate
-            month.EntryRecords[index] = entryRec
-
-            // Save to checked entries
-            dates_map[entryRec.Date] = entryRec.ExchRate
-            checked_entries[entryRec.Currency] = dates_map
-          } else {
-            dates_map[entryRec.Date] = entryRec.ExchRate
-            checked_entries[entryRec.Currency] = dates_map
-          }
+          dates_map[entryRec.Date] = index
+          checked_entries[entryRec.Currency] = dates_map
         }
-
       } else {
         // Add new currency with the date and rate
-        dates_map := map[time.Time]float64{}
-        // Create new entry, get exchage rate
-        if entryRec.ExchRate == 0.0 {
-          rate, err := exchRates.GetRate(entryRec.Currency, "EUR", entryRec.Date)
+        dates_map := map[time.Time]int{}
+        dates_map[entryRec.Date] = index
+        checked_entries[entryRec.Currency] = dates_map
+      }
+    }
+  }
+
+  // Get rates from API in parallel
+  var wg sync.WaitGroup
+  for curr, map_dates := range checked_entries {
+    for date, index := range map_dates {
+      // Avoid asking again for the rate
+      if month.EntryRecords[index].ExchRate == 0.0 {
+        wg.Add(1)
+        go func(curr string, date time.Time, index int) {
+          defer wg.Done()
+          rate, err := exchRates.GetRate(curr, "EUR", date)
           if err != nil {
             fmt.Println(err)
           }
-          // Set rate for future use in entry
-          entryRec.ExchRate = rate
-          month.EntryRecords[index] = entryRec
-
-          // Save to checked entries
-          dates_map[entryRec.Date] = entryRec.ExchRate
-          checked_entries[entryRec.Currency] = dates_map
-        } else {
-          dates_map[entryRec.Date] = entryRec.ExchRate
-          checked_entries[entryRec.Currency] = dates_map
-        }
+          month.EntryRecords[index].ExchRate = rate
+        }(curr, date, index)
       }
-
     }
   }
+  wg.Wait()
 
   // Calculate average per currency
   avg_curr := map[string]float64{}
-  for curr, dates_map := range checked_entries {
-    num_elems := len(dates_map)
-    for _, exch := range dates_map {
-      avg_curr[curr] += exch
+  for curr, map_dates := range checked_entries {
+    num_elems := len(map_dates)
+    for _, index := range map_dates {
+      avg_curr[curr] += month.EntryRecords[index].ExchRate
     }
     avg_curr[curr] = avg_curr[curr]/float64(num_elems)
   }
-
 
   // set the caulcated exchange rates to the month
   for curr, avg_val := range avg_curr {
@@ -166,7 +150,6 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
   }
 
   return month.AvgExchRates
-
 }
 
 
