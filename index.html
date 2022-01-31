@@ -192,8 +192,13 @@ Previous year data (EUR):
         <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
         <div class="box">{{.Category}}</div>
         <div class="box">{{.PersonName}}</div>
-        <div class="box">{{.Currency}}</div>
         <div class="box">{{.Amount}}</div>
+        <div class="box">{{.Currency}}</div>
+        {{ if ne .Currency "EUR" }}
+        <div class="box">{{ printf "%.2f" .ExchRate}}</div>
+        {{ else }}
+        <div class="box"> - </div>
+        {{ end }}
         <div class="box">{{.Comment}}</div>
         {{ end }}
       </div>
