@@ -12,7 +12,6 @@ import (
   "os"
   "encoding/json"
   "io/ioutil"
-  "sync"
 
   "apunta/exchRates"
 )
@@ -64,9 +63,14 @@ type Document struct {
   MonthRecs     []MonthRec
 }
 
-// Global stuff
-var tpl = template.Must(template.ParseFiles("index.html"))
-var inputFileRead = false
+var (
+  tpl = template.Must(template.ParseFiles("index.html"))
+  inputFileRead = false
+)
+
+const (
+  concurrencyLevel = 10
+)
 
 
 // *******************************
@@ -114,24 +118,30 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
   }
 
   // Get rates from API in parallel
-  var wg sync.WaitGroup
+  queue := make(chan bool, concurrencyLevel)
   for curr, map_dates := range checked_entries {
     for date, index := range map_dates {
       // Avoid asking again for the rate
       if month.EntryRecords[index].ExchRate == 0.0 {
-        wg.Add(1)
-        go func(curr string, date time.Time, index int) {
-          defer wg.Done()
-          rate, err := exchRates.GetRate(curr, "EUR", date)
+        // Fill channel with dummy flags
+        queue <- true
+        go func(_curr string, _date time.Time, _index int) {
+          // clear the flag after finishing
+          defer func() { <- queue }()
+          rate, err := exchRates.GetRate(_curr, "EUR", _date)
           if err != nil {
             fmt.Println(err)
           }
-          month.EntryRecords[index].ExchRate = rate
+          month.EntryRecords[_index].ExchRate = rate
         }(curr, date, index)
       }
     }
   }
-  wg.Wait()
+
+  // flush the queue to compute last values
+  for i := 0; i < concurrencyLevel; i++ {
+    queue <- true
+  }
 
   // Calculate average per currency
   avg_curr := map[string]float64{}
