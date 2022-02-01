@@ -12,7 +12,7 @@
 <h2>Apunta</h2>
 
 <form action="/addEntry" method="post">
-  <div class="wrapper">
+  <div class="input-wrapper">
     <div class="box">Date</div>
     <div class="box">Category</div>
     <div class="box">Who</div>
@@ -187,7 +187,7 @@ Previous year data (EUR):
         Accum: {{ printf "%.2f" $value.Accum }}<br>
         Debt: {{ printf "%.2f" $value.Debt }}<br>
       {{ end }}
-      <div class="wrapper">
+      <div class="entries-wrapper">
         {{ range .EntryRecords }}
         <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
         <div class="box">{{.Category}}</div>

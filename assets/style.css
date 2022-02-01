@@ -45,7 +45,15 @@ input.input-field {
   outline: none;
 }
 
-.wrapper {
+.input-wrapper {
+  display: grid;
+  grid-template-columns: 150px 120px 70px 80px 100px 180px;
+  grid-gap: 3px;
+  background-color: #c6c6c6;
+  color: #444;
+}
+
+.entries-wrapper {
   display: grid;
   grid-template-columns: 130px 120px 50px 100px 80px 80px 350px;
   grid-gap: 3px;
