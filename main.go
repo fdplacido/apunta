@@ -303,7 +303,8 @@ func (doc *Document) writeJson(fileName string) http.HandlerFunc {
         fmt.Println(err)
         return
     }
-    fmt.Println("Saving current data in file named ", fileName)
+    t := time.Now()
+    fmt.Printf("Saving current data at %s in file named %s\n", t.Format("15:04:05"), fileName)
     _ = ioutil.WriteFile(fileName, b, 0644)
 
     tpl.Execute(w, doc)
