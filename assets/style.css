@@ -86,8 +86,8 @@ input.input-field {
 /* Style the input fields */
 .form-inline input {
   vertical-align: middle;
-  margin: 5px 10px 5px 0;
-  padding: 10px;
+  margin: 5px 10px 5px 5px;
+  padding: 5px;
   background-color: #fff;
   border: 1px solid #ddd;
 }
@@ -210,4 +210,16 @@ body {
 
 .tabset {
   max-width: 65em;
+}
+
+
+
+.row {
+  display: flex;
+}
+
+.column {
+  flex: 50%;
+  padding: 0 0 0 30px;
+  vertical-align: sub;
 }

@@ -11,7 +11,10 @@
 
 <h2>Apunta</h2>
 
-<form action="/addEntry" method="post">
+ <div class="row">
+  <div class="column">
+
+<form class="form-inline" action="/addEntry" method="post">
   <div class="input-wrapper">
     <div class="box">Date</div>
     <div class="box">Category</div>
@@ -62,9 +65,20 @@
     <div class="box">
       <input type="text" class="input-field" name="comment"><br />
     </div>
-    <input type="submit" value="Add entry">
+    <button type="submit">Add Entry</button>
   </div>
 </form>
+
+  </div>
+  <div class="column">
+
+<form class="form-inline" action="/writeJSON" method="post">
+  <button type="submit">Write JSON to file</button>
+</form>
+
+  </div>
+</div>
+
 
 <p class="bottom-one"><hr/></p>
 
@@ -76,9 +90,6 @@
   <!-- Tab 2 -->
   <input type="radio" name="tabset" id="tab2" aria-controls="previous-data-tab">
   <label for="tab2">Previous data</label>
-  <!-- Tab 3 -->
-  <input type="radio" name="tabset" id="tab3" aria-controls="write-json-tab">
-  <label for="tab3">Write JSON</label>
   <!-- Tab 4 -->
   <input type="radio" name="tabset" id="tab4" aria-controls="add-sheet-tab" checked>
   <label for="tab4">Add sheet</label>
@@ -123,15 +134,6 @@ Previous year data (EUR):
 {{ range $name, $value := .PrevDebt }}
 {{ $name }}: {{ $value }}<br />
 {{ end }}
-
-    </section>
-
-    <section id="write-json-tab" class="tab-panel">
-
-<form class="form-inline" action="/writeJSON" method="post">
-  <label>Write JSON to file:</label>
-  <button type="submit">Save</button>
-</form>
 
     </section>
 
