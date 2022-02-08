@@ -192,6 +192,14 @@ Previous year data (EUR):
         Debt: {{ printf "%.2f" $value.Debt }}<br>
       {{ end }}
       <div class="entries-wrapper">
+        <div class="box">Date</div>
+        <div class="box">Category</div>
+        <div class="box">Payer</div>
+        <div class="box">Amount</div>
+        <div class="box">Curr</div>
+        <div class="box">Exch. R.</div>
+        <div class="box">Comment</div>
+
         {{ range .EntryRecords }}
         <div class="box">{{.Date.Format "2006 Jan 02"}}</div>
         <div class="box">{{.Category}}</div>
