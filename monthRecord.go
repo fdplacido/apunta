@@ -164,13 +164,8 @@ func (month *MonthRec) calcStats(prevMonth *MonthRec, prevDebtData map[string]fl
       }
     }
   } else { // Get previous month debts, add them to Accumulated for this month
-    for key, value := range month.Stats.AllPayersStats {
-      if prevStats, prevOk := prevMonth.Stats.AllPayersStats[key]; prevOk {
-        value.Accum += (-1 * prevStats.Debt)
-        month.Stats.AllPayersStats[key] = PayerStats{value.Spent, value.Accum, value.Debt}
-      } else {
-        month.Stats.AllPayersStats[key] = PayerStats{value.Spent, (-1 * prevStats.Debt), value.Debt}
-      }
+    for prev_payer, prev_stats := range prevMonth.Stats.AllPayersStats {
+      month.Stats.AllPayersStats[prev_payer] = PayerStats{0.0, (-1 * prev_stats.Debt), 0.0}
     }
   }
 
