@@ -78,12 +78,14 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
 
   // Map of non-EUR currencies to map of dates - indexes in the entry records
   checked_entries := map[string]map[time.Time]int{}
+  same_date_entries := []int{}
   for index, entryRec := range month.EntryRecords {
     if entryRec.Currency != "EUR" {
       // Check if currency was already seen
       if dates_map, curr_ok := checked_entries[entryRec.Currency]; curr_ok {
         // check if date was already seen
         if _, date_ok := dates_map[entryRec.Date]; date_ok {
+          same_date_entries = append(same_date_entries, index)
           continue
         } else {
           dates_map[entryRec.Date] = index
@@ -124,6 +126,12 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
     queue <- true
   }
 
+  // Set repeated days entries rates
+  for _, index := range same_date_entries {
+    downloaded_rate_idx := checked_entries[month.EntryRecords[index].Currency][month.EntryRecords[index].Date]
+    month.EntryRecords[index].ExchRate = month.EntryRecords[downloaded_rate_idx].ExchRate
+  }
+
   // Calculate average per currency
   avg_curr := map[string]float64{}
   for curr, map_dates := range checked_entries {
@@ -136,8 +144,15 @@ func (month *MonthRec) ExchRatesCalcs() []ExRateEntry {
 
   // set the caulcated exchange rates to the month
   for curr, avg_val := range avg_curr {
-    new_rate := ExRateEntry{curr, "EUR", avg_val}
-    month.AvgExchRates = append(month.AvgExchRates, new_rate)
+    // Check if rate was already set
+    for i, saved_avg_rate := range month.AvgExchRates {
+      if saved_avg_rate.CurrFrom == curr {
+        month.AvgExchRates[i].AvgVal = avg_val
+      } else {
+        new_rate := ExRateEntry{curr, "EUR", avg_val}
+        month.AvgExchRates = append(month.AvgExchRates, new_rate)
+      }
+    }
   }
 
   return month.AvgExchRates
