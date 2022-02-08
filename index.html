@@ -71,7 +71,7 @@
 
 <div class="tabset">
   <!-- Tab 1 -->
-  <input type="radio" name="tabset" id="tab1" aria-controls="dropdown-tab" checked>
+  <input type="radio" name="tabset" id="tab1" aria-controls="dropdown-tab">
   <label for="tab1">Dropdowns</label>
   <!-- Tab 2 -->
   <input type="radio" name="tabset" id="tab2" aria-controls="previous-data-tab">
@@ -80,7 +80,7 @@
   <input type="radio" name="tabset" id="tab3" aria-controls="write-json-tab">
   <label for="tab3">Write JSON</label>
   <!-- Tab 4 -->
-  <input type="radio" name="tabset" id="tab4" aria-controls="add-sheet-tab">
+  <input type="radio" name="tabset" id="tab4" aria-controls="add-sheet-tab" checked>
   <label for="tab4">Add sheet</label>
 
   <div class="tab-panels">
@@ -167,8 +167,12 @@ Previous year data (EUR):
     <div class="box">
       Change month to:
       <select id="changeSheet" name="changeSheet">
-        {{ range.MonthRecs }}
-        <option value="{{.GroupName}}">{{.GroupName}}</option>
+        {{ range .MonthRecs }}
+          {{ if .ActiveGroup }}
+            <option value="{{.GroupName}}" selected="selected">{{.GroupName}}</option>
+          {{ else }}
+            <option value="{{.GroupName}}">{{.GroupName}}</option>
+          {{ end }}
         {{ end }}
       </select>
     </div>
